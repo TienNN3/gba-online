@@ -5,61 +5,134 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>GBA Online</title>
 <style>
-  :root { --bg:#14121f; --card:#1f1b33; --fg:#eee; --muted:#9a96b5; --accent:#7c5cff; --ok:#3ecf8e; --warn:#f5a524; }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg); font-family: system-ui, sans-serif; min-height:100vh; }
-  header { padding:12px 16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; border-bottom:1px solid #2c2748; }
-  h1 { font-size:18px; margin:0; flex:1; min-width:120px; }
-  button, label.btn, select { background:var(--accent); color:#fff; border:0; padding:8px 12px; border-radius:8px; font-size:14px; cursor:pointer; font-family:inherit; }
-  button.ghost, label.btn.ghost, select { background:#2c2748; }
-  button.small { padding:5px 9px; font-size:12px; }
-  button.on { background:var(--ok); color:#06210f; }
-  button:disabled { opacity:.45; cursor:default; }
-  main { max-width:1000px; margin:0 auto; padding:16px; }
-  #drop { border:2px dashed #3a3463; border-radius:14px; padding:26px 16px; text-align:center; background:var(--card); color:var(--muted); margin-bottom:16px; }
-  #drop.over { border-color:var(--accent); color:#fff; }
-  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-  .chip { font-size:12px; padding:4px 9px; border-radius:99px; background:#2c2748; color:var(--muted); }
-  .chip.ok { background:#12372a; color:var(--ok); }
-  .chip.warn { background:#3b2b0c; color:var(--warn); }
-  #list { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px; margin-top:12px; }
-  .game { background:var(--card); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px; }
-  .game .t { font-weight:600; word-break:break-word; }
-  .game .m { font-size:12px; color:var(--muted); }
-  #player { display:none; }
-  #frameWrap { width:100%; aspect-ratio:3/2; max-height:72vh; background:#000; border-radius:10px; overflow:hidden; margin:10px auto; }
-  iframe { width:100%; height:100%; border:0; }
-  .bar { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:6px 0; }
-  .bar .sep { width:1px; height:22px; background:#3a3463; margin:0 4px; }
-  .tip { color:var(--muted); font-size:13px; line-height:1.7; margin-top:14px; }
-  .tip kbd { background:#2c2748; padding:1px 6px; border-radius:4px; }
-  dialog { background:var(--card); color:var(--fg); border:1px solid #3a3463; border-radius:12px; width:min(520px,92vw); }
-  dialog textarea { width:100%; height:180px; background:#14121f; color:var(--fg); border:1px solid #3a3463; border-radius:8px; padding:8px; font-family:monospace; }
-  #toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:#000c; padding:9px 16px; border-radius:99px; font-size:14px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:9; max-width:90vw; }
-  #toast.show { opacity:1; }
-  input[type=file] { display:none; }
-  label.chk { font-size:13px; color:var(--muted); display:flex; gap:6px; align-items:center; }
+  :root{
+    --bg:#0b0a14; --fg:#f2f1fa; --muted:#a39fc0; --line:rgba(255,255,255,.12);
+    --glass:rgba(255,255,255,.06); --glass2:rgba(255,255,255,.10);
+    --a1:#8b6bff; --a2:#27d3f5; --a3:#ff6bb5; --ok:#3ee0a0; --warn:#ffb648;
+    --grad:linear-gradient(135deg,var(--a1),var(--a2));
+    --r:18px;
+  }
+  *{box-sizing:border-box}
+  html{color-scheme:dark}
+  body{margin:0;min-height:100vh;color:var(--fg);background:var(--bg);
+    font-family:ui-sans-serif,-apple-system,"SF Pro Display","Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  /* nền: các quả cầu màu mờ phía sau lớp kính */
+  body::before,body::after{content:"";position:fixed;z-index:-1;border-radius:50%;filter:blur(90px);opacity:.55;pointer-events:none}
+  body::before{width:520px;height:520px;left:-120px;top:-120px;background:radial-gradient(circle,#6d4dff,transparent 70%)}
+  body::after{width:560px;height:560px;right:-160px;bottom:-160px;background:radial-gradient(circle,#18b9e0,transparent 70%)}
+  .orb{position:fixed;z-index:-1;width:380px;height:380px;right:18%;top:8%;border-radius:50%;filter:blur(100px);opacity:.30;background:radial-gradient(circle,#ff4fa8,transparent 70%);pointer-events:none}
+  .glass{background:var(--glass);border:1px solid var(--line);border-radius:var(--r);
+    -webkit-backdrop-filter:blur(20px) saturate(150%);backdrop-filter:blur(20px) saturate(150%);
+    box-shadow:0 8px 32px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08)}
+  /* topbar */
+  .wrap{max-width:1080px;margin:0 auto;padding:16px}
+  .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;position:sticky;top:12px;z-index:5;margin-bottom:18px}
+  .logo{width:38px;height:38px;border-radius:12px;background:var(--grad);display:grid;place-items:center;font-size:20px;box-shadow:0 6px 18px rgba(139,107,255,.45)}
+  .brand{display:flex;flex-direction:column;line-height:1.15;margin-right:auto}
+  .brand b{font-size:16px;letter-spacing:.2px}
+  .brand span{font-size:12px;color:var(--muted)}
+  /* nút */
+  button,label.btn,select{font-family:inherit;font-size:13.5px;border:0;color:#fff;cursor:pointer;padding:9px 14px;border-radius:12px;
+    background:var(--grad);font-weight:600;transition:transform .12s,filter .15s,background .15s;box-shadow:0 4px 14px rgba(110,90,255,.35)}
+  button:hover,label.btn:hover{filter:brightness(1.12);transform:translateY(-1px)}
+  button:active{transform:translateY(0)}
+  button.ghost,label.btn.ghost,select{background:var(--glass2);border:1px solid var(--line);box-shadow:none;font-weight:500;
+    -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+  button.ghost:hover,label.btn.ghost:hover{background:rgba(255,255,255,.17)}
+  button.small{padding:6px 10px;font-size:12px;border-radius:10px}
+  button.on{background:linear-gradient(135deg,#27d3f5,#3ee0a0);color:#04221a;box-shadow:0 4px 14px rgba(39,211,245,.35)}
+  button:disabled{opacity:.4;cursor:default;transform:none}
+  select option{background:#1a1630;color:#fff}
+  input[type=file]{display:none}
+  input[type=checkbox]{accent-color:var(--a1);width:15px;height:15px}
+  /* chip */
+  .chip{font-size:12px;padding:5px 11px;border-radius:99px;background:var(--glass2);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+  .chip.ok{background:rgba(62,224,160,.14);border-color:rgba(62,224,160,.35);color:var(--ok)}
+  .chip.warn{background:rgba(255,182,72,.14);border-color:rgba(255,182,72,.35);color:var(--warn)}
+  /* hero + stats */
+  .hero{padding:4px 4px 16px}
+  .hero h2{margin:0;font-size:28px;letter-spacing:-.4px}
+  .hero h2 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p{margin:6px 0 0;color:var(--muted);font-size:14px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+  .stat{padding:16px 18px}
+  .stat small{display:block;color:var(--muted);font-size:12px;margin-bottom:6px;text-transform:uppercase;letter-spacing:.8px}
+  .stat b{font-size:26px;letter-spacing:-.5px}
+  .stat b.s{font-size:17px;line-height:1.5}
+  /* drop */
+  #drop{padding:22px;text-align:center;border-style:dashed;border-width:2px;border-color:rgba(255,255,255,.2);color:var(--muted);margin-bottom:14px;transition:.2s}
+  #drop.over{border-color:var(--a2);background:rgba(39,211,245,.10);color:#fff}
+  #drop b{color:#fff;font-size:16px}
+  .opts{display:flex;gap:10px;align-items:center;margin:4px 2px 12px;flex-wrap:wrap}
+  label.chk{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center;cursor:pointer}
+  /* thẻ game */
+  #list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+  .game{padding:12px;display:flex;flex-direction:column;gap:9px;transition:transform .18s,box-shadow .18s,border-color .18s}
+  .game:hover{transform:translateY(-4px);border-color:rgba(255,255,255,.25);box-shadow:0 14px 40px rgba(0,0,0,.45)}
+  .game .art{height:96px;border-radius:12px;display:grid;place-items:center;font-size:30px;font-weight:800;letter-spacing:1px;color:rgba(255,255,255,.92);
+    text-shadow:0 2px 12px rgba(0,0,0,.35);position:relative;overflow:hidden}
+  .game .art::after{content:"";position:absolute;inset:0;background:linear-gradient(160deg,rgba(255,255,255,.28),transparent 45%)}
+  .game .t{font-weight:650;font-size:14.5px;word-break:break-word;line-height:1.3}
+  .game .m{font-size:12px;color:var(--muted)}
+  .row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+  .game .row button:first-child{flex:1}
+  .empty{grid-column:1/-1;padding:28px;text-align:center;color:var(--muted)}
+  /* player */
+  #player{display:none}
+  .panel{padding:12px 14px;margin-bottom:12px}
+  #frameWrap{width:100%;aspect-ratio:3/2;max-height:72vh;background:#000;border-radius:16px;overflow:hidden;margin:0 auto 12px;
+    border:1px solid var(--line);box-shadow:0 0 0 6px rgba(255,255,255,.04),0 20px 60px rgba(0,0,0,.6), 0 0 80px rgba(139,107,255,.18)}
+  iframe{width:100%;height:100%;border:0}
+  .bar{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+  .bar+.bar{margin-top:10px}
+  .bar .sep{width:1px;height:24px;background:var(--line);margin:0 4px}
+  .tip{color:var(--muted);font-size:12.5px;line-height:1.75;margin-top:14px;padding:0 4px}
+  .tip b{color:var(--fg)}
+  .tip kbd{background:var(--glass2);border:1px solid var(--line);padding:1px 7px;border-radius:6px;font-size:11.5px;color:var(--fg)}
+  code{background:var(--glass2);padding:1px 6px;border-radius:6px;font-size:12px}
+  /* dialog */
+  dialog{color:var(--fg);width:min(520px,92vw);padding:20px;background:rgba(24,20,44,.78);border:1px solid var(--line);border-radius:20px;
+    -webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px)}
+  dialog::backdrop{background:rgba(5,4,12,.6);backdrop-filter:blur(4px)}
+  dialog textarea{width:100%;height:180px;background:rgba(0,0,0,.35);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:10px;font-family:ui-monospace,Menlo,monospace;font-size:13px}
+  #toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,10px);background:rgba(20,17,38,.85);border:1px solid var(--line);
+    -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);padding:10px 18px;border-radius:99px;font-size:13.5px;opacity:0;transition:.25s;pointer-events:none;z-index:99;max-width:90vw}
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+  @media(max-width:560px){.hero h2{font-size:22px}.top{top:8px}.brand span{display:none}}
 </style>
 </head>
 <body>
-<header>
-  <h1>🎮 GBA Online</h1>
-  <span id="driveChip" class="chip">Chưa đồng bộ</span>
-  <button id="btnDbx" class="ghost">Đăng nhập Dropbox</button>
-  <button id="btnDrive" class="ghost">Dùng thư mục máy</button>
-  <button id="btnSync" class="ghost" disabled>Đồng bộ</button>
-</header>
+<div class="orb"></div>
+<div class="wrap">
+  <header class="top glass">
+    <div class="logo">🎮</div>
+    <div class="brand"><b>Dashboard TienNN3</b><span>GBA Online · mGBA</span></div>
+    <span id="driveChip" class="chip">Chưa đồng bộ</span>
+    <button id="btnDbx" class="ghost">Đăng nhập Dropbox</button>
+    <button id="btnDrive" class="ghost">Dùng thư mục máy</button>
+    <button id="btnSync" class="ghost" disabled>⟳ Đồng bộ</button>
+  </header>
 
-<main>
   <!-- THƯ VIỆN -->
   <section id="library">
-    <div id="drop">
-      <b style="color:#fff">Kéo thả ROM (.gba / .zip) vào đây</b> hoặc
-      <label class="btn" for="romIn" style="margin-left:6px">Thêm ROM</label>
-      <input id="romIn" type="file" accept=".gba,.zip,.7z" multiple>
-      <div style="margin-top:8px;font-size:12px">ROM nằm trong trình duyệt (và thư mục Drive nếu đã kết nối), không gửi lên server nào.</div>
+    <div class="hero">
+      <h2><span id="hello">Xin chào</span>, <em>TienNN3</em></h2>
+      <p id="sub">Tiếp tục cuộc phiêu lưu của bạn, mọi save được đồng bộ về một nơi.</p>
     </div>
-    <div class="row">
+    <div class="stats">
+      <div class="stat glass"><small>Game</small><b id="sGames">0</b></div>
+      <div class="stat glass"><small>File save</small><b id="sSaves">0</b></div>
+      <div class="stat glass"><small>Save state</small><b id="sStates">0</b></div>
+      <div class="stat glass"><small>Đồng bộ</small><b class="s" id="sSync">Chưa bật</b></div>
+    </div>
+
+    <div id="drop" class="glass">
+      <b>Kéo thả ROM (.gba / .zip) vào đây</b> hoặc
+      <label class="btn" for="romIn" style="margin-left:6px">＋ Thêm ROM</label>
+      <input id="romIn" type="file" accept=".gba,.zip,.7z" multiple>
+      <div style="margin-top:8px;font-size:12px">ROM nằm trong trình duyệt (và nơi đồng bộ nếu đã đăng nhập), không gửi cho ai khác.</div>
+    </div>
+    <div class="opts">
       <label class="chk"><input type="checkbox" id="resume" checked> Tiếp tục từ lần chơi trước (auto-save state)</label>
     </div>
     <div id="list"></div>
@@ -73,29 +146,33 @@
 
   <!-- MÀN HÌNH CHƠI -->
   <section id="player">
-    <div class="bar">
-      <button class="ghost" id="bBack">← Thư viện</button>
-      <b id="gTitle" style="flex:1"></b>
-      <span id="padChip" class="chip">Tay cầm: chưa thấy</span>
+    <div class="panel glass">
+      <div class="bar">
+        <button class="ghost" id="bBack">← Thư viện</button>
+        <b id="gTitle" style="flex:1;font-size:16px"></b>
+        <span id="padChip" class="chip">Tay cầm: chưa thấy</span>
+      </div>
     </div>
     <div id="frameWrap"><iframe id="frame" allow="gamepad; autoplay; fullscreen"></iframe></div>
 
-    <div class="bar">
-      <select id="slot"></select>
-      <button id="bSave">💾 Lưu nhanh (F5)</button>
-      <button id="bLoad" class="ghost">📂 Tải (F9)</button>
-      <span class="sep"></span>
-      <span class="chip">Tốc độ</span>
-      <span id="speeds" class="row"></span>
-      <button id="bRew" class="ghost">⏪ Tua ngược (giữ / phím E)</button>
-    </div>
-    <div class="bar">
-      <button class="ghost" id="bCheat">Cheat…</button>
-      <button class="ghost" id="bExpSav">Xuất .sav</button>
-      <label class="btn ghost" for="impSav">Nhập .sav</label><input id="impSav" type="file" accept=".sav,.srm">
-      <button class="ghost" id="bExpState">Xuất state</button>
-      <label class="btn ghost" for="impState">Nhập state</label><input id="impState" type="file" accept=".state,.sst,.ss0">
-      <button class="ghost" id="bFull">Toàn màn hình</button>
+    <div class="panel glass">
+      <div class="bar">
+        <select id="slot"></select>
+        <button id="bSave">💾 Lưu nhanh (F5)</button>
+        <button id="bLoad" class="ghost">📂 Tải (F9)</button>
+        <span class="sep"></span>
+        <span class="chip">Tốc độ</span>
+        <span id="speeds" class="row"></span>
+        <button id="bRew" class="ghost">⏪ Tua ngược (giữ / phím E)</button>
+      </div>
+      <div class="bar">
+        <button class="ghost" id="bCheat">Cheat…</button>
+        <button class="ghost" id="bExpSav">Xuất .sav</button>
+        <label class="btn ghost" for="impSav">Nhập .sav</label><input id="impSav" type="file" accept=".sav,.srm">
+        <button class="ghost" id="bExpState">Xuất state</button>
+        <label class="btn ghost" for="impState">Nhập state</label><input id="impState" type="file" accept=".state,.sst,.ss0">
+        <button class="ghost" id="bFull">⛶ Toàn màn hình</button>
+      </div>
     </div>
     <div class="tip">
       Phím tắt: <kbd>F5</kbd> lưu nhanh, <kbd>F9</kbd> tải, giữ <kbd>Space</kbd> để tua nhanh, giữ <kbd>E</kbd> để tua ngược.
@@ -103,13 +180,13 @@
       Gán lại phím và tay cầm: nút bánh răng trên thanh điều khiển của màn hình game.
     </div>
   </section>
-</main>
+</div>
 
 <dialog id="cheatDlg">
-  <b>Cheat (mỗi dòng: <code>Tên | MÃ</code>)</b>
+  <b style="font-size:16px">Cheat</b> <span style="color:var(--muted);font-size:13px">mỗi dòng: <code>Tên | MÃ</code></span>
   <p style="font-size:12px;color:var(--muted)">Dùng mã GameShark/Action Replay đúng loại của game. Lưu xong game khởi động lại để áp dụng.</p>
   <textarea id="cheatTxt" placeholder="Infinite HP | 82003224 0063"></textarea>
-  <div class="row" style="margin-top:10px;justify-content:flex-end">
+  <div class="row" style="margin-top:12px;justify-content:flex-end">
     <button class="ghost" id="cCancel">Đóng</button><button id="cSave">Lưu &amp; khởi động lại</button>
   </div>
 </dialog>
@@ -152,6 +229,7 @@ function driveUI(){
   else if(backend==='dir' && dir && fsOK){ c.textContent='Đồng bộ: thư mục '+dir.name; c.className='chip ok'; }
   else if(backend==='dir' && dir){ c.textContent='Thư mục '+dir.name+': cần cấp lại quyền'; c.className='chip warn'; }
   else { c.textContent='Chưa đồng bộ'; c.className='chip'; }
+  $('sSync').textContent=c.textContent.replace('Đồng bộ: ','');
   bd.textContent = !dbx ? 'Đăng nhập Dropbox' : (backend==='dbx' ? 'Đăng xuất Dropbox' : 'Dùng Dropbox');
   bf.textContent = (backend==='dir' && dir && !fsOK) ? 'Cấp lại quyền' : (dir?'Đổi thư mục':'Dùng thư mục máy');
   bf.style.display = hasFSA ? '' : 'none';
@@ -313,27 +391,35 @@ const drop=$('drop');
 drop.addEventListener('drop',e=>addFiles([...e.dataTransfer.files]));
 
 let patchTarget=null;
+function hue(str){ let h=0; for(const c of str) h=(h*31+c.charCodeAt(0))%360; return h; }
+function initials(str){ const w=str.replace(/[\[\(].*$/,'').trim().split(/[\s_\-.]+/).filter(Boolean); return ((w[0]||'?')[0]+((w[1]||'')[0]||(w[0]||'')[1]||'')).toUpperCase(); }
 async function renderList(){
   const roms=(await idbKeys('roms')).sort((a,b)=>a.localeCompare(b));
   const keys=await idbKeys('saves');
+  $('sGames').textContent=roms.length;
+  $('sSaves').textContent=keys.filter(k=>k.endsWith('.sav')).length;
+  $('sStates').textContent=keys.filter(k=>k.endsWith('.state')).length;
   const box=$('list'); box.innerHTML='';
-  if(!roms.length){ box.innerHTML='<div class="tip">Chưa có game nào. Thêm ROM hoặc đăng nhập Dropbox rồi bấm Đồng bộ.</div>'; return; }
+  if(!roms.length){ box.innerHTML='<div class="empty glass">Chưa có game nào. Thêm ROM hoặc đăng nhập Dropbox rồi bấm Đồng bộ.</div>'; return; }
   for(const n of roms){
     const b=baseName(n);
     const sav=await idbGet('saves',b+'.sav');
     const nStates=keys.filter(k=>k.startsWith(b+'.')&&k.endsWith('.state')).length;
-    const d=document.createElement('div'); d.className='game';
-    d.innerHTML=`<div class="t"></div><div class="m"></div><div class="row"></div>`;
+    const d=document.createElement('div'); d.className='game glass';
+    d.innerHTML=`<div class="art"></div><div class="t"></div><div class="m"></div><div class="row"></div>`;
+    const h=hue(b); const art=d.querySelector('.art');
+    art.style.background=`linear-gradient(135deg,hsl(${h} 75% 52%),hsl(${(h+55)%360} 80% 42%))`; art.textContent=initials(b);
     d.querySelector('.t').textContent=b;
     d.querySelector('.m').textContent=(sav?'Save: '+fmtTime(sav.time):'Chưa có save')+(nStates?` · ${nStates} state`:'');
     const r=d.querySelector('.row');
     const mk=(txt,cls,fn)=>{ const x=document.createElement('button'); x.textContent=txt; if(cls) x.className=cls; x.onclick=fn; r.appendChild(x); };
     mk('▶ Chơi','',()=>play(n));
-    mk('Patch…','ghost small',()=>{ patchTarget=n; $('patchIn').click(); });
+    mk('Patch','ghost small',()=>{ patchTarget=n; $('patchIn').click(); });
     mk('Xoá','ghost small',async()=>{ if(!confirm(`Xoá ROM "${n}" khỏi thư viện${dirOK?' và nơi đồng bộ':''}? Save vẫn được giữ.`)) return; await idbDel('roms',n); if(dirOK) await dRemove('roms',n); renderList(); });
     box.appendChild(d);
   }
 }
+(function greet(){ const h=new Date().getHours(); $('hello').textContent=h<11?'Chào buổi sáng':h<18?'Chào buổi chiều':'Chào buổi tối'; })();
 
 /* ---------- Áp patch IPS / UPS / BPS ---------- */
 function vint(p,st){ let data=0, shift=1; for(;;){ const x=p[st.i++]; data+=(x&0x7f)*shift; if(x&0x80) break; shift*=128; data+=shift; } return data; }
