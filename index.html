@@ -143,7 +143,8 @@
   .game .t{font-weight:700;font-size:14px;word-break:break-word;line-height:1.3;padding:0 4px}
   .game .m{font-size:11.5px;color:var(--muted);padding:0 4px;margin-top:-6px}
   .row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
-  .game .row{padding:0 2px 2px}
+  .game .row{padding:0 2px 2px;flex-wrap:nowrap}
+  .game .row button{flex:1;padding:6px 4px;font-size:11.5px}
   .empty{grid-column:1/-1;padding:36px;text-align:center;color:var(--muted)}
   @keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
   @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -208,7 +209,9 @@
     <div id="drop" class="glass"><b>Kéo thả ROM (.gba / .zip) vào đây</b> · ROM nằm trong trình duyệt (và nơi đồng bộ nếu đã đăng nhập), không gửi cho ai khác.</div>
     <div id="list"></div>
     <input id="patchIn" type="file" accept=".ips,.ups,.bps">
+    <input id="updIn" type="file" accept=".gba,.zip,.7z">
     <div class="tip">
+      <b>Cập nhật ROM</b>: dùng nút “Cập nhật” trên thẻ game để thay ROM mới mà vẫn giữ save (.sav). Save luôn được sao lưu trước khi thay.<br>
       <b>Đồng bộ</b>: bấm “Đăng nhập Dropbox” một lần. Trang tạo thư mục riêng <code>Apps/…</code> trong Dropbox của bạn với <code>roms/</code> và <code>saves/</code>;
       ROM, save in-game và save state được tải lên và kéo về tự động, dùng được trên máy tính lẫn điện thoại.<br>
       Hoặc “Dùng thư mục máy” (Chrome/Edge máy tính) để ghi vào một thư mục đồng bộ bất kỳ như iCloud Drive hay Google Drive for Desktop.
@@ -433,27 +436,58 @@ async function syncAll(){
   if(!dirOK){ toast('Chưa đăng nhập đồng bộ'); return; }
   $('btnSync').disabled=true;
   try{
-    const driveRoms=await dList('roms'), local=await idbKeys('roms');
-    let down=0, up=0;
-    for(const n of driveRoms) if(/\.(gba|zip|7z)$/i.test(n) && !local.includes(n)){ await idbPut('roms',n,await dRead('roms',n)); down++; }
-    for(const n of local) if(!driveRoms.includes(n)){ await dWrite('roms',n,await idbGet('roms',n)); up++; }
+    const driveRoms=await dList('roms'), local=await idbKeys('roms'), times=await getRomTimes();
+    let down=0, up=0, upd=0;
+    for(const n of driveRoms){
+      if(!/\.(gba|zip|7z)$/i.test(n)) continue;
+      const rt=await dStat('roms',n);
+      if(!local.includes(n)){ const f=await dRead('roms',n); if(f){ await idbPut('roms',n,f); await setRomTime(n,rt); down++; } continue; }
+      const lt=times[n]||0;
+      if(!lt){ await setRomTime(n,rt); continue; }                       // lần đầu thấy, coi là giống nhau
+      if(rt>lt+2000){ const f=await dRead('roms',n); if(f){ await romReplacedElsewhere(n,f,rt); upd++; } }
+      else if(lt>rt+2000){ await dWrite('roms',n,await idbGet('roms',n),lt); up++; }
+    }
+    for(const n of local) if(!driveRoms.includes(n)){ await pushRom(n,await idbGet('roms',n)); up++; }
     const names=new Set((await idbKeys('saves')).concat(await dList('saves')));
     let sv=0;
     for(const k of names) if(/\.(sav|state)$/.test(k)){ const r=await syncKey(k); if(r!=='same') sv++; }
-    toast(`Đồng bộ xong: ROM ↓${down} ↑${up}, save đổi ${sv}`);
+    toast(`Đồng bộ xong: ROM ↓${down} ↑${up}${upd?` (cập nhật ${upd})`:''}, save đổi ${sv}`);
   }catch(e){ toast('Đồng bộ lỗi: '+e.message); }
   $('btnSync').disabled=false; renderList();
 }
 $('btnSync').onclick=syncAll;
 
 /* ---------- Thư viện ROM ---------- */
-async function addRom(file){
-  await idbPut('roms',file.name,file);
-  if(dirOK){ try{ await dWrite('roms',file.name,file); }catch(e){ toast('Ghi ROM lỗi'); } }
+/* ROM: lưu cùng thời điểm ghi để biết bản nào mới hơn giữa các máy */
+async function getRomTimes(){ return (await idbGet('meta','romTimes'))||{}; }
+async function setRomTime(name,t){ const m=await getRomTimes(); m[name]=t; await idbPut('meta','romTimes',m); }
+async function pushRom(name,blob){
+  const t=Date.now(); await idbPut('roms',name,blob); await setRomTime(name,t);
+  if(dirOK){ try{ await dWrite('roms',name,blob,t); const rt=await dStat('roms',name); if(rt) await setRomTime(name,rt); }catch(e){ toast('Ghi ROM lên nơi đồng bộ lỗi'); } }
+}
+async function addRom(file){ await pushRom(file.name,file); }
+const stamp=()=>new Date().toISOString().slice(0,16).replace(/[-:T]/g,'').replace(/^(\d{8})/,'$1-');
+/* Cập nhật ROM: giữ nguyên tên game + save (.sav), sao lưu .sav trước, bỏ auto-save state cũ (có thể không khớp ROM mới) */
+async function updateRom(name,file){
+  const base=baseName(name);
+  const sav=await idbGet('saves',base+'.sav');
+  if(sav) await putSave(`${base}.backup-${stamp()}.sav`,sav.data);
+  await idbDel('saves',base+'.auto.state'); if(dirOK) await dRemove('saves',base+'.auto.state');
+  const ext=(file.name.match(/\.[^.]+$/)||['.gba'])[0];
+  const newName=base+ext;
+  if(newName!==name){ await idbDel('roms',name); if(dirOK) await dRemove('roms',name); }
+  await pushRom(newName,file);
+  return newName;
+}
+// ROM đã được máy khác cập nhật: nhận bản mới, bỏ auto-state cũ trên máy này
+async function romReplacedElsewhere(name,file,rt){
+  await idbPut('roms',name,file); await setRomTime(name,rt); await idbDel('saves',baseName(name)+'.auto.state');
 }
 async function addFiles(files){
-  let n=0; for(const f of files){ if(/\.(gba|zip|7z)$/i.test(f.name)){ await addRom(f); n++; } }
-  toast(n? `Đã thêm ${n} ROM` : 'Chỉ nhận .gba/.zip/.7z'); renderList();
+  let n=0,u=0; const have=await idbKeys('roms');
+  for(const f of files){ if(/\.(gba|zip|7z)$/i.test(f.name)){
+    if(have.includes(f.name)){ await updateRom(f.name,f); u++; } else { await addRom(f); n++; } } }
+  toast(u? `Đã cập nhật ${u} ROM (giữ save)`+(n?`, thêm ${n}`:'') : n? `Đã thêm ${n} ROM` : 'Chỉ nhận .gba/.zip/.7z'); renderList();
 }
 $('romIn').onchange=e=>{ addFiles([...e.target.files]); e.target.value=''; };
 const drop=$('drop');
@@ -461,7 +495,13 @@ const drop=$('drop');
 ['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove('over');}));
 drop.addEventListener('drop',e=>addFiles([...e.dataTransfer.files]));
 
-let patchTarget=null;
+let patchTarget=null, updTarget=null;
+$('updIn').onchange=async e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f||!updTarget) return;
+  if(!confirm(`Cập nhật "${baseName(updTarget)}" bằng file "${f.name}"?\n\n• Save trong game (.sav) được GIỮ và sao lưu một bản.\n• Auto-save state cũ bị bỏ (có thể không khớp ROM mới); các slot lưu nhanh vẫn giữ.`)) return;
+  try{ const nn=await updateRom(updTarget,f); toast('Đã cập nhật ROM, save được giữ nguyên'); }catch(err){ toast('Cập nhật lỗi: '+err.message); }
+  renderList();
+};
 const PALS=[['#ff8a3d','#ff3d8b'],['#2ee6a6','#1d9bf0'],['#ffd23f','#ff7a45'],['#38bdf8','#2ee6a6'],['#c6ff3d','#2ee6a6'],['#ff5d8f','#ff9a3d'],['#4facfe','#00e5c0'],['#ff6b6b','#ffd23f']];
 function pal(str){ let h=0; for(const c of str) h=(h*31+c.charCodeAt(0))>>>0; return PALS[h%PALS.length]; }
 function initials(str){ const w=str.replace(/[\[\(].*$/,'').trim().split(/[\s_\-.]+/).filter(Boolean); return ((w[0]||'?')[0]+((w[1]||'')[0]||(w[0]||'')[1]||'')).toUpperCase(); }
@@ -487,7 +527,7 @@ async function renderList(){
   const keys=await idbKeys('saves');
   const played=(await idbGet('meta','played'))||{};
   $('sGames').textContent=roms.length;
-  $('sSaves').textContent=keys.filter(k=>k.endsWith('.sav')).length;
+  $('sSaves').textContent=keys.filter(k=>k.endsWith('.sav')&&!k.includes('.backup-')).length;
   $('sStates').textContent=keys.filter(k=>k.endsWith('.state')).length;
   await renderHero(roms,played);
   const q=($('q').value||'').toLowerCase().trim();
@@ -510,6 +550,7 @@ async function renderList(){
     d.querySelector('.m').textContent=sav?'Save: '+fmtTime(sav.time):'Chưa có save';
     const r=d.querySelector('.row');
     const mk=(txt,cls,fn)=>{ const x=document.createElement('button'); x.textContent=txt; x.className=cls; x.onclick=fn; r.appendChild(x); };
+    mk('Cập nhật','ghost small',()=>{ updTarget=n; $('updIn').click(); });
     mk('Patch','ghost small',()=>{ patchTarget=n; $('patchIn').click(); });
     mk('Xoá','ghost small',async()=>{ if(!confirm(`Xoá ROM "${n}" khỏi thư viện${dirOK?' và nơi đồng bộ':''}? Save vẫn được giữ.`)) return; await idbDel('roms',n); if(dirOK) await dRemove('roms',n); renderList(); });
     box.appendChild(d);
@@ -562,8 +603,13 @@ $('patchIn').onchange=async e=>{
     const rom=new Uint8Array(await romFile.arrayBuffer()), p=new Uint8Array(await pf.arrayBuffer());
     const ext=pf.name.split('.').pop().toLowerCase();
     const res= ext==='ips'?applyIPS(rom,p): ext==='ups'?applyUPS(rom,p): applyBPS(rom,p);
-    const name=baseName(patchTarget)+' ['+baseName(pf.name)+'].gba';
-    await addRom(new File([res],name)); toast('Đã tạo: '+name); renderList();
+    if(confirm('Thay thế ROM hiện tại bằng bản đã patch và GIỮ save?\n\nOK = thay thế (giữ save)\nHuỷ = tạo thêm game mới (save riêng)')){
+      await updateRom(patchTarget,new File([res],patchTarget)); toast('Đã patch và giữ save');
+    } else {
+      const name=baseName(patchTarget)+' ['+baseName(pf.name)+'].gba';
+      await addRom(new File([res],name)); toast('Đã tạo: '+name);
+    }
+    renderList();
   }catch(err){ toast('Patch lỗi: '+err.message); }
 };
 
