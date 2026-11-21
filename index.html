@@ -203,14 +203,16 @@
       <input id="q" type="search" placeholder="Tìm game…" aria-label="Tìm game">
       <select id="sortSel" aria-label="Sắp xếp"><option value="recent">Chơi gần đây</option><option value="name">Tên A–Z</option></select>
       <label class="btn" for="romIn">＋ Thêm ROM</label>
-      <input id="romIn" type="file" accept=".gba,.zip,.7z" multiple>
+      <button id="btnPatchNew" class="ghost">🧩 ROM + Patch</button>
+      <input id="romIn" type="file" accept=".gba,.zip,.7z,.bps,.ips,.ups" multiple>
       <label class="chk"><input type="checkbox" id="resume" checked> Tiếp tục từ lần trước</label>
     </div>
-    <div id="drop" class="glass"><b>Kéo thả ROM (.gba / .zip) vào đây</b> · ROM nằm trong trình duyệt (và nơi đồng bộ nếu đã đăng nhập), không gửi cho ai khác.</div>
+    <div id="drop" class="glass"><b>Kéo thả ROM (.gba / .zip) vào đây</b>, kéo cả file patch (.bps/.ips/.ups) cùng lúc để tự tạo game đã patch · ROM nằm trong trình duyệt (và nơi đồng bộ nếu đã đăng nhập), không gửi cho ai khác.</div>
     <div id="list"></div>
     <input id="patchIn" type="file" accept=".ips,.ups,.bps">
     <input id="updIn" type="file" accept=".gba,.zip,.7z">
     <div class="tip">
+      <b>Game cài patch (.bps/.ips/.ups)</b>: bấm “🧩 ROM + Patch” (hoặc kéo thả ROM và patch cùng lúc). Trang tự kiểm tra ROM gốc có đúng bản không (CRC) rồi tạo game mới.<br>
       <b>Cập nhật ROM</b>: dùng nút “Cập nhật” trên thẻ game để thay ROM mới mà vẫn giữ save (.sav). Save luôn được sao lưu trước khi thay.<br>
       <b>Đồng bộ</b>: bấm “Đăng nhập Dropbox” một lần. Trang tạo thư mục riêng <code>Apps/…</code> trong Dropbox của bạn với <code>roms/</code> và <code>saves/</code>;
       ROM, save in-game và save state được tải lên và kéo về tự động, dùng được trên máy tính lẫn điện thoại.<br>
@@ -256,6 +258,15 @@
   </section>
 </div>
 
+<dialog id="patchDlg">
+  <b style="font-size:16px">Tạo game từ ROM + patch</b>
+  <p style="font-size:12.5px;color:var(--muted)">Chọn ROM gốc (.gba hoặc .zip) và file patch (.bps / .ips / .ups). Game đã patch được thêm vào thư viện, dùng save riêng. ROM gốc của bạn không bị thay đổi.</p>
+  <div class="row" style="margin:8px 0"><label class="btn" for="pRom">1 · Chọn ROM gốc</label><input id="pRom" type="file" accept=".gba,.zip"><span id="pRomN" class="chip">chưa chọn</span></div>
+  <div class="row" style="margin:8px 0"><label class="btn" for="pPatch">2 · Chọn patch</label><input id="pPatch" type="file" accept=".bps,.ips,.ups"><span id="pPatchN" class="chip">chưa chọn</span></div>
+  <input id="pName" type="search" placeholder="Tên game" style="width:100%;margin:8px 0">
+  <label class="chk" style="margin-bottom:12px"><input type="checkbox" id="pPlay" checked> Chơi ngay sau khi tạo</label>
+  <div class="row" style="justify-content:flex-end"><button class="ghost" id="pClose">Đóng</button><button id="pGo" disabled>Tạo game</button></div>
+</dialog>
 <dialog id="cheatDlg">
   <b style="font-size:16px">Cheat</b> <span style="color:var(--muted);font-size:13px">mỗi dòng: <code>Tên | MÃ</code></span>
   <p style="font-size:12px;color:var(--muted)">Dùng mã GameShark/Action Replay đúng loại của game. Lưu xong game khởi động lại để áp dụng.</p>
@@ -484,6 +495,8 @@ async function romReplacedElsewhere(name,file,rt){
   await idbPut('roms',name,file); await setRomTime(name,rt); await idbDel('saves',baseName(name)+'.auto.state');
 }
 async function addFiles(files){
+  const pf=files.find(f=>/\.(bps|ips|ups)$/i.test(f.name));
+  if(pf){ openPatchDlg(files.find(f=>/\.(gba|zip)$/i.test(f.name)),pf); return; }
   let n=0,u=0; const have=await idbKeys('roms');
   for(const f of files){ if(/\.(gba|zip|7z)$/i.test(f.name)){
     if(have.includes(f.name)){ await updateRom(f.name,f); u++; } else { await addRom(f); n++; } } }
@@ -595,22 +608,94 @@ function applyBPS(rom,p){
   }
   return out;
 }
+/* CRC32, đọc ROM trong .zip, kiểm tra patch */
+const CRC_T=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
+function crc32(u8){ let c=0xFFFFFFFF; for(let i=0;i<u8.length;i++) c=CRC_T[(c^u8[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+async function unzipFirst(u8){
+  const dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength);
+  let e=u8.length-22; while(e>=0&&dv.getUint32(e,true)!==0x06054b50) e--; if(e<0) throw Error('File ZIP không hợp lệ');
+  const cnt=dv.getUint16(e+10,true); let q=dv.getUint32(e+16,true);
+  for(let i=0;i<cnt;i++){
+    if(dv.getUint32(q,true)!==0x02014b50) break;
+    const method=dv.getUint16(q+10,true), csize=dv.getUint32(q+20,true), nlen=dv.getUint16(q+28,true), xlen=dv.getUint16(q+30,true), clen=dv.getUint16(q+32,true), lho=dv.getUint32(q+42,true);
+    const name=new TextDecoder().decode(u8.subarray(q+46,q+46+nlen)); q+=46+nlen+xlen+clen;
+    if(!/\.(gba|agb|bin)$/i.test(name)) continue;
+    const start=lho+30+dv.getUint16(lho+26,true)+dv.getUint16(lho+28,true), data=u8.subarray(start,start+csize);
+    if(method===0) return data.slice();
+    if(method===8) return new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+    throw Error('ZIP dùng kiểu nén không hỗ trợ');
+  }
+  throw Error('Không thấy file .gba trong ZIP');
+}
+async function readRomBytes(file){
+  if(/\.7z$/i.test(file.name)) throw Error('Chưa đọc được .7z, hãy giải nén ra .gba hoặc .zip');
+  const u=new Uint8Array(await file.arrayBuffer());
+  return /\.zip$/i.test(file.name)? unzipFirst(u) : u;
+}
+const footerCRC=pt=>{ const dv=new DataView(pt.buffer,pt.byteOffset,pt.byteLength); return {src:dv.getUint32(pt.length-12,true), tgt:dv.getUint32(pt.length-8,true)}; };
+async function buildPatched(romFile,patchFile){
+  const ext=patchFile.name.split('.').pop().toLowerCase();
+  if(!['ips','ups','bps'].includes(ext)) throw Error('Chỉ hỗ trợ patch .bps .ips .ups');
+  const rom=await readRomBytes(romFile), pt=new Uint8Array(await patchFile.arrayBuffer());
+  const hasCrc=ext!=='ips';
+  if(hasCrc && pt.length>=12 && crc32(rom)!==footerCRC(pt).src &&
+     !confirm('ROM gốc KHÔNG khớp với patch này (CRC khác).\nThường do sai phiên bản ROM hoặc ROM có header khác.\n\nVẫn tiếp tục?')) throw Error('Đã huỷ');
+  const out= ext==='ips'?applyIPS(rom,pt): ext==='ups'?applyUPS(rom,pt): applyBPS(rom,pt);
+  const note=(hasCrc && pt.length>=12 && crc32(out)!==footerCRC(pt).tgt)?' — cảnh báo: kết quả không khớp CRC, có thể ROM gốc sai bản':'';
+  return {out,note};
+}
+async function saveNewPatched(name,out,{replaceName}={}){
+  // nếu đã có game trùng tên thì coi là cập nhật (giữ save)
+  const file=new File([out],name+'.gba'); const have=await idbKeys('roms');
+  if(replaceName){ await updateRom(replaceName,file); return replaceName; }
+  if(have.includes(file.name)){ if(!confirm(`Đã có game "${name}". Thay thế bằng bản đã patch và GIỮ save?`)) throw Error('Đã huỷ'); await updateRom(file.name,file); }
+  else await addRom(file);
+  return file.name;
+}
+
+/* nút "Patch" trên thẻ game (dùng ROM đã có) */
 $('patchIn').onchange=async e=>{
   const pf=e.target.files[0]; e.target.value=''; if(!pf||!patchTarget) return;
   try{
     const romFile=await idbGet('roms',patchTarget);
-    if(!/\.gba$/i.test(patchTarget)) throw Error('Chỉ patch được file .gba (giải nén .zip trước)');
-    const rom=new Uint8Array(await romFile.arrayBuffer()), p=new Uint8Array(await pf.arrayBuffer());
-    const ext=pf.name.split('.').pop().toLowerCase();
-    const res= ext==='ips'?applyIPS(rom,p): ext==='ups'?applyUPS(rom,p): applyBPS(rom,p);
+    const {out,note}=await buildPatched(romFile,pf);
     if(confirm('Thay thế ROM hiện tại bằng bản đã patch và GIỮ save?\n\nOK = thay thế (giữ save)\nHuỷ = tạo thêm game mới (save riêng)')){
-      await updateRom(patchTarget,new File([res],patchTarget)); toast('Đã patch và giữ save');
+      await saveNewPatched(baseName(patchTarget),out,{replaceName:patchTarget}); toast('Đã patch và giữ save'+note);
     } else {
-      const name=baseName(patchTarget)+' ['+baseName(pf.name)+'].gba';
-      await addRom(new File([res],name)); toast('Đã tạo: '+name);
+      const name=baseName(patchTarget)+' ['+baseName(pf.name)+']';
+      await saveNewPatched(name,out); toast('Đã tạo: '+name+note);
     }
-    renderList();
-  }catch(err){ toast('Patch lỗi: '+err.message); }
+  }catch(err){ if(err.message!=='Đã huỷ') toast('Patch lỗi: '+err.message); }
+  renderList();
+};
+
+/* hộp thoại "ROM + Patch": chọn / kéo thả cả hai file */
+let pdRom=null, pdPatch=null;
+function pdUpdate(){
+  $('pRomN').textContent=pdRom?pdRom.name:'chưa chọn'; $('pRomN').className='chip'+(pdRom?' ok':'');
+  $('pPatchN').textContent=pdPatch?pdPatch.name:'chưa chọn'; $('pPatchN').className='chip'+(pdPatch?' ok':'');
+  $('pGo').disabled=!(pdRom&&pdPatch);
+}
+function openPatchDlg(rom,patch){
+  pdRom=rom||null; pdPatch=patch||null;
+  $('pName').value=(rom?baseName(rom.name):'')+(patch?' ['+baseName(patch.name)+']':'');
+  pdUpdate(); $('patchDlg').showModal();
+}
+$('btnPatchNew').onclick=()=>openPatchDlg();
+$('pRom').onchange=e=>{ pdRom=e.target.files[0]||null; e.target.value=''; if(pdRom&&pdPatch&&!$('pName').dataset.edited) $('pName').value=baseName(pdRom.name)+' ['+baseName(pdPatch.name)+']'; pdUpdate(); };
+$('pPatch').onchange=e=>{ pdPatch=e.target.files[0]||null; e.target.value=''; if(pdRom&&pdPatch&&!$('pName').dataset.edited) $('pName').value=baseName(pdRom.name)+' ['+baseName(pdPatch.name)+']'; pdUpdate(); };
+$('pName').oninput=()=>{ $('pName').dataset.edited='1'; };
+$('pClose').onclick=()=>$('patchDlg').close();
+$('pGo').onclick=async()=>{
+  const name=($('pName').value||'').trim().replace(/[\\/:*?"<>|]/g,'')||baseName(pdRom.name)+' patched';
+  $('pGo').disabled=true; $('pGo').textContent='Đang tạo…';
+  try{
+    const {out,note}=await buildPatched(pdRom,pdPatch);
+    const fname=await saveNewPatched(name,out);
+    $('patchDlg').close(); toast('Đã tạo game: '+baseName(fname)+note); await renderList();
+    if($('pPlay').checked) play(fname);
+  }catch(err){ if(err.message!=='Đã huỷ') toast('Không tạo được: '+err.message); }
+  $('pGo').textContent='Tạo game'; pdUpdate();
 };
 
 /* ---------- Trình phát ---------- */
