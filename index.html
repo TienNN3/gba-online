@@ -204,13 +204,13 @@
       <select id="sortSel" aria-label="Sắp xếp"><option value="recent">Chơi gần đây</option><option value="name">Tên A–Z</option></select>
       <label class="btn" for="romIn">＋ Thêm ROM</label>
       <button id="btnPatchNew" class="ghost">🧩 ROM + Patch</button>
-      <input id="romIn" type="file" accept=".gba,.zip,.7z,.bps,.ips,.ups" multiple>
+      <input id="romIn" type="file" multiple>
       <label class="chk"><input type="checkbox" id="resume" checked> Tiếp tục từ lần trước</label>
     </div>
     <div id="drop" class="glass"><b>Kéo thả ROM (.gba / .zip) vào đây</b>, kéo cả file patch (.bps/.ips/.ups) cùng lúc để tự tạo game đã patch · ROM nằm trong trình duyệt (và nơi đồng bộ nếu đã đăng nhập), không gửi cho ai khác.</div>
     <div id="list"></div>
-    <input id="patchIn" type="file" accept=".ips,.ups,.bps">
-    <input id="updIn" type="file" accept=".gba,.zip,.7z">
+    <input id="patchIn" type="file">
+    <input id="updIn" type="file">
     <div class="tip">
       <b>Game cài patch (.bps/.ips/.ups)</b>: bấm “🧩 ROM + Patch” (hoặc kéo thả ROM và patch cùng lúc). Trang tự kiểm tra ROM gốc có đúng bản không (CRC) rồi tạo game mới.<br>
       <b>Cập nhật ROM</b>: dùng nút “Cập nhật” trên thẻ game để thay ROM mới mà vẫn giữ save (.sav). Save luôn được sao lưu trước khi thay.<br>
@@ -244,9 +244,9 @@
       <div class="bar">
         <button class="ghost" id="bCheat">Cheat…</button>
         <button class="ghost" id="bExpSav">Xuất .sav</button>
-        <label class="btn ghost" for="impSav">Nhập .sav</label><input id="impSav" type="file" accept=".sav,.srm">
+        <label class="btn ghost" for="impSav">Nhập .sav</label><input id="impSav" type="file">
         <button class="ghost" id="bExpState">Xuất state</button>
-        <label class="btn ghost" for="impState">Nhập state</label><input id="impState" type="file" accept=".state,.sst,.ss0">
+        <label class="btn ghost" for="impState">Nhập state</label><input id="impState" type="file">
         <button class="ghost" id="bFull">⛶ Toàn màn hình</button>
       </div>
     </div>
@@ -261,8 +261,8 @@
 <dialog id="patchDlg">
   <b style="font-size:16px">Tạo game từ ROM + patch</b>
   <p style="font-size:12.5px;color:var(--muted)">Chọn ROM gốc (.gba hoặc .zip) và file patch (.bps / .ips / .ups). Game đã patch được thêm vào thư viện, dùng save riêng. ROM gốc của bạn không bị thay đổi.</p>
-  <div class="row" style="margin:8px 0"><label class="btn" for="pRom">1 · Chọn ROM gốc</label><input id="pRom" type="file" accept=".gba,.zip"><span id="pRomN" class="chip">chưa chọn</span></div>
-  <div class="row" style="margin:8px 0"><label class="btn" for="pPatch">2 · Chọn patch</label><input id="pPatch" type="file" accept=".bps,.ips,.ups"><span id="pPatchN" class="chip">chưa chọn</span></div>
+  <div class="row" style="margin:8px 0"><label class="btn" for="pRom">1 · Chọn ROM gốc</label><input id="pRom" type="file"><span id="pRomN" class="chip">chưa chọn</span></div>
+  <div class="row" style="margin:8px 0"><label class="btn" for="pPatch">2 · Chọn patch</label><input id="pPatch" type="file"><span id="pPatchN" class="chip">chưa chọn</span></div>
   <input id="pName" type="search" placeholder="Tên game" style="width:100%;margin:8px 0">
   <label class="chk" style="margin-bottom:12px"><input type="checkbox" id="pPlay" checked> Chơi ngay sau khi tạo</label>
   <div class="row" style="justify-content:flex-end"><button class="ghost" id="pClose">Đóng</button><button id="pGo" disabled>Tạo game</button></div>
@@ -682,8 +682,8 @@ function openPatchDlg(rom,patch){
   pdUpdate(); $('patchDlg').showModal();
 }
 $('btnPatchNew').onclick=()=>openPatchDlg();
-$('pRom').onchange=e=>{ pdRom=e.target.files[0]||null; e.target.value=''; if(pdRom&&pdPatch&&!$('pName').dataset.edited) $('pName').value=baseName(pdRom.name)+' ['+baseName(pdPatch.name)+']'; pdUpdate(); };
-$('pPatch').onchange=e=>{ pdPatch=e.target.files[0]||null; e.target.value=''; if(pdRom&&pdPatch&&!$('pName').dataset.edited) $('pName').value=baseName(pdRom.name)+' ['+baseName(pdPatch.name)+']'; pdUpdate(); };
+$('pRom').onchange=e=>{ pdRom=e.target.files[0]||null; e.target.value=''; if(pdRom&&!/\.(gba|agb|bin|zip)$/i.test(pdRom.name)){ toast('Cần file ROM .gba hoặc .zip, không phải “'+pdRom.name+'”'); pdRom=null; } if(pdRom&&pdPatch&&!$('pName').dataset.edited) $('pName').value=baseName(pdRom.name)+' ['+baseName(pdPatch.name)+']'; pdUpdate(); };
+$('pPatch').onchange=e=>{ pdPatch=e.target.files[0]||null; e.target.value=''; if(pdPatch&&!/\.(bps|ips|ups)$/i.test(pdPatch.name)){ toast('Cần file patch .bps/.ips/.ups, không phải “'+pdPatch.name+'”'); pdPatch=null; } if(pdRom&&pdPatch&&!$('pName').dataset.edited) $('pName').value=baseName(pdRom.name)+' ['+baseName(pdPatch.name)+']'; pdUpdate(); };
 $('pName').oninput=()=>{ $('pName').dataset.edited='1'; };
 $('pClose').onclick=()=>$('patchDlg').close();
 $('pGo').onclick=async()=>{
