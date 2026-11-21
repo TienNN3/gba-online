@@ -4,84 +4,102 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>GBA Online</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#06141d; --fg:#f2f1fa; --muted:#a39fc0; --line:rgba(255,255,255,.12);
-    --glass:rgba(255,255,255,.06); --glass2:rgba(255,255,255,.10);
-    --a1:#14d9a5; --a2:#3b9cff; --a3:#ff5da2; --sun:#ffc531; --ok:#8cff7a; --warn:#ffb648;
-    --grad:linear-gradient(135deg,var(--a1),var(--a2));
-    --r:18px;
+    --bg:#070d1a; --fg:#f4f7ff; --muted:#9db0cf; --line:rgba(255,255,255,.10);
+    --glass:rgba(255,255,255,.055); --glass2:rgba(255,255,255,.09);
+    --a1:#2ee6a6; --a2:#38bdf8; --a3:#ff5d8f; --sun:#ffd23f; --ok:#b6ff5a; --warn:#ffb648;
+    --grad:linear-gradient(135deg,#2ee6a6,#38bdf8);
+    --r:22px; --ease:cubic-bezier(.2,.8,.2,1);
   }
   *{box-sizing:border-box}
   html{color-scheme:dark}
   body{margin:0;min-height:100vh;color:var(--fg);background:var(--bg);
-    font-family:ui-sans-serif,-apple-system,"SF Pro Display","Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
-  /* nền: các quả cầu màu mờ phía sau lớp kính */
-  body::before,body::after{content:"";position:fixed;z-index:-1;border-radius:50%;filter:blur(90px);opacity:.55;pointer-events:none}
-  body::before{width:520px;height:520px;left:-120px;top:-120px;background:radial-gradient(circle,#10e0b0,transparent 70%)}
-  body::after{width:560px;height:560px;right:-160px;bottom:-160px;background:radial-gradient(circle,#ff9f1c,transparent 70%)}
-  .orb{position:fixed;z-index:-1;width:380px;height:380px;right:18%;top:8%;border-radius:50%;filter:blur(100px);opacity:.30;background:radial-gradient(circle,#ff3d8b,transparent 70%);pointer-events:none}
+    font-family:"Plus Jakarta Sans",ui-sans-serif,-apple-system,"SF Pro Display","Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  body::before,body::after,.orb{content:"";position:fixed;z-index:-1;border-radius:50%;filter:blur(100px);pointer-events:none}
+  body::before{width:560px;height:560px;left:-140px;top:-140px;background:radial-gradient(circle,#19e3a8,transparent 70%);opacity:.42}
+  body::after{width:600px;height:600px;right:-180px;bottom:-180px;background:radial-gradient(circle,#ff8a1f,transparent 70%);opacity:.38}
+  .orb{width:420px;height:420px;right:10%;top:4%;background:radial-gradient(circle,#1e90ff,transparent 70%);opacity:.22}
   .glass{background:var(--glass);border:1px solid var(--line);border-radius:var(--r);
-    -webkit-backdrop-filter:blur(20px) saturate(150%);backdrop-filter:blur(20px) saturate(150%);
-    box-shadow:0 8px 32px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08)}
+    -webkit-backdrop-filter:blur(22px) saturate(160%);backdrop-filter:blur(22px) saturate(160%);
+    box-shadow:0 10px 36px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.07)}
+  .wrap{max-width:1120px;margin:0 auto;padding:16px}
+  :focus-visible{outline:2px solid var(--sun);outline-offset:2px}
   /* topbar */
-  .wrap{max-width:1080px;margin:0 auto;padding:16px}
-  .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;position:sticky;top:12px;z-index:5;margin-bottom:18px}
-  .logo{width:38px;height:38px;border-radius:12px;background:var(--grad);display:grid;place-items:center;font-size:20px;box-shadow:0 6px 18px rgba(20,217,165,.45)}
+  .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;position:sticky;top:12px;z-index:5;margin-bottom:16px;border-radius:999px}
+  .logo{width:40px;height:40px;border-radius:50%;background:var(--grad);display:grid;place-items:center;font-size:20px;box-shadow:0 6px 20px rgba(46,230,166,.5)}
   .brand{display:flex;flex-direction:column;line-height:1.15;margin-right:auto}
-  .brand b{font-size:16px;letter-spacing:.2px}
-  .brand span{font-size:12px;color:var(--muted)}
-  /* nút */
-  button,label.btn,select{font-family:inherit;font-size:13.5px;border:0;color:#fff;cursor:pointer;padding:9px 14px;border-radius:12px;
-    background:var(--grad);font-weight:600;transition:transform .12s,filter .15s,background .15s;box-shadow:0 4px 14px rgba(59,156,255,.38)}
-  button:hover,label.btn:hover{filter:brightness(1.12);transform:translateY(-1px)}
-  button:active{transform:translateY(0)}
-  button.ghost,label.btn.ghost,select{background:var(--glass2);border:1px solid var(--line);box-shadow:none;font-weight:500;
-    -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
-  button.ghost:hover,label.btn.ghost:hover{background:rgba(255,255,255,.17)}
-  button.small{padding:6px 10px;font-size:12px;border-radius:10px}
-  button.on{background:linear-gradient(135deg,#ffd23f,#ff8a3d);color:#2b1400;box-shadow:0 4px 14px rgba(255,170,60,.4)}
+  .brand b{font-size:15px;letter-spacing:.1px}
+  .brand span{font-size:11.5px;color:var(--muted)}
+  button,label.btn,select,input[type=search]{font-family:inherit;font-size:13.5px;border:0;color:#fff;padding:9px 15px;border-radius:999px}
+  button,label.btn,select{cursor:pointer;background:var(--grad);color:#041a14;font-weight:700;transition:transform .15s var(--ease),filter .15s,background .15s;box-shadow:0 6px 18px rgba(56,189,248,.32)}
+  button:hover,label.btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  button:active,label.btn:active{transform:scale(.97)}
+  button.ghost,label.btn.ghost,select{background:var(--glass2);border:1px solid var(--line);box-shadow:none;font-weight:600;color:var(--fg)}
+  button.ghost:hover,label.btn.ghost:hover{background:rgba(255,255,255,.16)}
+  button.small{padding:6px 11px;font-size:12px}
+  button.on{background:linear-gradient(135deg,#ffd23f,#ff8a3d);color:#2b1400;box-shadow:0 6px 18px rgba(255,170,60,.4)}
   button:disabled{opacity:.4;cursor:default;transform:none}
-  select option{background:#1a1630;color:#fff}
+  select option{background:#111a2e;color:#fff}
   input[type=file]{display:none}
   input[type=checkbox]{accent-color:var(--a1);width:15px;height:15px}
-  /* chip */
-  .chip{font-size:12px;padding:5px 11px;border-radius:99px;background:var(--glass2);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
-  .chip.ok{background:rgba(140,255,122,.14);border-color:rgba(140,255,122,.38);color:var(--ok)}
-  .chip.warn{background:rgba(255,182,72,.14);border-color:rgba(255,182,72,.35);color:var(--warn)}
-  /* hero + stats */
-  .hero{padding:4px 4px 16px}
-  .hero h2{margin:0;font-size:28px;letter-spacing:-.4px}
-  .hero h2 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .hero p{margin:6px 0 0;color:var(--muted);font-size:14px}
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
-  .stat{padding:16px 18px}
-  .stat small{display:block;color:var(--muted);font-size:12px;margin-bottom:6px;text-transform:uppercase;letter-spacing:.8px}
-  .stat b{font-size:26px;letter-spacing:-.5px}
-  .stat b.s{font-size:17px;line-height:1.5}
-  /* drop */
-  #drop{padding:22px;text-align:center;border-style:dashed;border-width:2px;border-color:rgba(255,255,255,.2);color:var(--muted);margin-bottom:14px;transition:.2s}
-  #drop.over{border-color:var(--sun);background:rgba(255,197,49,.10);color:#fff}
-  #drop b{color:#fff;font-size:16px}
-  .opts{display:flex;gap:10px;align-items:center;margin:4px 2px 12px;flex-wrap:wrap}
+  input[type=search]{background:var(--glass2);border:1px solid var(--line);flex:1;min-width:140px;outline:none}
+  input[type=search]::placeholder{color:var(--muted)}
+  input[type=search]:focus{border-color:var(--a2);box-shadow:0 0 0 3px rgba(56,189,248,.2)}
+  .chip{font-size:12px;padding:5px 12px;border-radius:99px;background:var(--glass2);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+  .chip.ok{background:rgba(182,255,90,.13);border-color:rgba(182,255,90,.4);color:var(--ok)}
+  .chip.warn{background:rgba(255,182,72,.14);border-color:rgba(255,182,72,.4);color:var(--warn)}
+  /* bento */
+  .bento{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .tile{padding:18px;position:relative;overflow:hidden;animation:rise .5s var(--ease) both}
+  .hero-tile{grid-column:span 2;grid-row:span 2;min-height:300px;display:flex;flex-direction:column;justify-content:space-between;border:0;
+    box-shadow:0 18px 50px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.2)}
+  .hero-tile .wm{position:absolute;right:-10px;bottom:-40px;font-size:190px;font-weight:800;letter-spacing:-6px;color:rgba(255,255,255,.16);line-height:1;pointer-events:none}
+  .hero-tile .hi{position:relative}
+  .hero-tile h2{margin:0;font-size:26px;letter-spacing:-.5px;color:#fff}
+  .hero-tile .hi p{margin:6px 0 0;color:rgba(255,255,255,.82);font-size:13.5px}
+  .hero-tile .now{position:relative}
+  .hero-tile .now small{display:block;text-transform:uppercase;letter-spacing:1.4px;font-size:11px;color:rgba(255,255,255,.75);margin-bottom:6px;font-weight:700}
+  .hero-tile .now b{display:block;font-size:30px;line-height:1.1;letter-spacing:-.8px;color:#fff;text-shadow:0 2px 20px rgba(0,0,0,.25);margin-bottom:6px}
+  .hero-tile .now span{font-size:13px;color:rgba(255,255,255,.85)}
+  .hero-tile .now .go{margin-top:14px;background:#fff;color:#0b1220;box-shadow:0 10px 30px rgba(0,0,0,.3);font-size:15px;padding:12px 22px}
+  .stat small{display:block;color:var(--muted);font-size:11.5px;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;font-weight:700}
+  .stat b{font-size:34px;letter-spacing:-1px;line-height:1}
+  .stat b.s{font-size:17px;line-height:1.4;letter-spacing:0}
+  .stat i{position:absolute;right:14px;top:12px;font-style:normal;font-size:22px;opacity:.9}
+  .stat:nth-child(2) b{color:var(--a1)} .stat:nth-child(3) b{color:var(--sun)} .stat:nth-child(4) b{color:var(--a3)} .stat:nth-child(5) b{color:var(--a2)}
+  .stat:nth-child(2){animation-delay:.05s}.stat:nth-child(3){animation-delay:.1s}.stat:nth-child(4){animation-delay:.15s}.stat:nth-child(5){animation-delay:.2s}
+  /* toolbar + drop */
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
   label.chk{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center;cursor:pointer}
-  /* thẻ game */
-  #list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
-  .game{padding:12px;display:flex;flex-direction:column;gap:9px;transition:transform .18s,box-shadow .18s,border-color .18s}
-  .game:hover{transform:translateY(-4px);border-color:rgba(255,255,255,.25);box-shadow:0 14px 40px rgba(0,0,0,.45)}
-  .game .art{height:96px;border-radius:12px;display:grid;place-items:center;font-size:30px;font-weight:800;letter-spacing:1px;color:rgba(255,255,255,.92);
-    text-shadow:0 2px 12px rgba(0,0,0,.35);position:relative;overflow:hidden}
-  .game .art::after{content:"";position:absolute;inset:0;background:linear-gradient(160deg,rgba(255,255,255,.28),transparent 45%)}
-  .game .t{font-weight:650;font-size:14.5px;word-break:break-word;line-height:1.3}
-  .game .m{font-size:12px;color:var(--muted)}
+  #drop{padding:14px 18px;text-align:center;border-style:dashed;border-width:2px;border-color:rgba(255,255,255,.18);color:var(--muted);margin-bottom:16px;transition:.2s;font-size:13px;border-radius:18px}
+  #drop.over{border-color:var(--sun);background:rgba(255,210,63,.10);color:#fff}
+  #drop b{color:#fff}
+  /* thẻ game dọc */
+  #list{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}
+  .game{padding:10px;display:flex;flex-direction:column;gap:10px;transition:transform .25s var(--ease),box-shadow .25s,border-color .25s;animation:rise .5s var(--ease) both;animation-delay:calc(var(--i,0)*40ms)}
+  .game:hover{transform:translateY(-6px);border-color:rgba(255,255,255,.3);box-shadow:0 20px 50px rgba(0,0,0,.5),0 0 40px var(--glow,rgba(46,230,166,.2))}
+  .game .art{aspect-ratio:4/5;border-radius:16px;display:grid;place-items:center;font-size:44px;font-weight:800;letter-spacing:-1px;color:rgba(255,255,255,.95);
+    text-shadow:0 4px 18px rgba(0,0,0,.3);position:relative;overflow:hidden;cursor:pointer}
+  .game .art::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 80% at 20% 0%,rgba(255,255,255,.4),transparent 55%)}
+  .game .art .play{position:absolute;right:10px;bottom:10px;width:42px;height:42px;border-radius:50%;background:#fff;color:#0b1220;display:grid;place-items:center;font-size:16px;
+    box-shadow:0 8px 22px rgba(0,0,0,.35);transform:scale(.85);opacity:.92;transition:.25s var(--ease)}
+  .game:hover .art .play{transform:scale(1.08);opacity:1}
+  .game .art .tag{position:absolute;left:10px;top:10px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;background:rgba(0,0,0,.35);backdrop-filter:blur(8px);color:#fff;letter-spacing:0}
+  .game .t{font-weight:700;font-size:14px;word-break:break-word;line-height:1.3;padding:0 4px}
+  .game .m{font-size:11.5px;color:var(--muted);padding:0 4px;margin-top:-6px}
   .row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
-  .game .row button:first-child{flex:1}
-  .empty{grid-column:1/-1;padding:28px;text-align:center;color:var(--muted)}
+  .game .row{padding:0 2px 2px}
+  .empty{grid-column:1/-1;padding:34px;text-align:center;color:var(--muted)}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
   /* player */
   #player{display:none}
   .panel{padding:12px 14px;margin-bottom:12px}
-  #frameWrap{width:100%;aspect-ratio:3/2;max-height:72vh;background:#000;border-radius:16px;overflow:hidden;margin:0 auto 12px;
-    border:1px solid var(--line);box-shadow:0 0 0 6px rgba(255,255,255,.04),0 20px 60px rgba(0,0,0,.6), 0 0 80px rgba(20,217,165,.20)}
+  #frameWrap{width:100%;aspect-ratio:3/2;max-height:72vh;background:#000;border-radius:20px;overflow:hidden;margin:0 auto 12px;
+    border:1px solid var(--line);box-shadow:0 0 0 6px rgba(255,255,255,.04),0 24px 70px rgba(0,0,0,.6),0 0 90px rgba(46,230,166,.22)}
   iframe{width:100%;height:100%;border:0}
   .bar{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
   .bar+.bar{margin-top:10px}
@@ -90,15 +108,20 @@
   .tip b{color:var(--fg)}
   .tip kbd{background:var(--glass2);border:1px solid var(--line);padding:1px 7px;border-radius:6px;font-size:11.5px;color:var(--fg)}
   code{background:var(--glass2);padding:1px 6px;border-radius:6px;font-size:12px}
-  /* dialog */
-  dialog{color:var(--fg);width:min(520px,92vw);padding:20px;background:rgba(24,20,44,.78);border:1px solid var(--line);border-radius:20px;
-    -webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px)}
-  dialog::backdrop{background:rgba(5,4,12,.6);backdrop-filter:blur(4px)}
-  dialog textarea{width:100%;height:180px;background:rgba(0,0,0,.35);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:10px;font-family:ui-monospace,Menlo,monospace;font-size:13px}
-  #toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,10px);background:rgba(20,17,38,.85);border:1px solid var(--line);
-    -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);padding:10px 18px;border-radius:99px;font-size:13.5px;opacity:0;transition:.25s;pointer-events:none;z-index:99;max-width:90vw}
+  dialog{color:var(--fg);width:min(520px,92vw);padding:22px;background:rgba(14,22,40,.8);border:1px solid var(--line);border-radius:24px;
+    -webkit-backdrop-filter:blur(26px);backdrop-filter:blur(26px)}
+  dialog::backdrop{background:rgba(3,6,14,.62);backdrop-filter:blur(4px)}
+  dialog textarea{width:100%;height:180px;background:rgba(0,0,0,.35);color:var(--fg);border:1px solid var(--line);border-radius:14px;padding:10px;font-family:ui-monospace,Menlo,monospace;font-size:13px}
+  #toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,10px);background:rgba(10,17,32,.88);border:1px solid var(--line);
+    -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);padding:11px 20px;border-radius:99px;font-size:13.5px;opacity:0;transition:.25s;pointer-events:none;z-index:99;max-width:90vw}
   #toast.show{opacity:1;transform:translate(-50%,0)}
-  @media(max-width:560px){.hero h2{font-size:22px}.top{top:8px}.brand span{display:none}}
+  @media(max-width:760px){
+    .bento{grid-template-columns:repeat(2,1fr)}
+    .hero-tile{grid-column:span 2;grid-row:auto;min-height:250px}
+    .hero-tile .wm{font-size:140px}
+    #list{grid-template-columns:repeat(2,1fr);gap:12px}
+    .top{border-radius:24px;position:static}.brand span{display:none}
+  }
 </style>
 </head>
 <body>
@@ -115,26 +138,22 @@
 
   <!-- THƯ VIỆN -->
   <section id="library">
-    <div class="hero">
-      <h2><span id="hello">Xin chào</span>, <em>TienNN3</em></h2>
-      <p id="sub">Tiếp tục cuộc phiêu lưu của bạn, mọi save được đồng bộ về một nơi.</p>
-    </div>
-    <div class="stats">
-      <div class="stat glass"><small>Game</small><b id="sGames">0</b></div>
-      <div class="stat glass"><small>File save</small><b id="sSaves">0</b></div>
-      <div class="stat glass"><small>Save state</small><b id="sStates">0</b></div>
-      <div class="stat glass"><small>Đồng bộ</small><b class="s" id="sSync">Chưa bật</b></div>
+    <div class="bento">
+      <div id="hero" class="tile hero-tile"></div>
+      <div class="tile stat glass"><i>🎮</i><small>Game</small><b id="sGames">0</b></div>
+      <div class="tile stat glass"><i>💾</i><small>File save</small><b id="sSaves">0</b></div>
+      <div class="tile stat glass"><i>⚡</i><small>Save state</small><b id="sStates">0</b></div>
+      <div class="tile stat glass"><i>☁️</i><small>Đồng bộ</small><b class="s" id="sSync">Chưa bật</b></div>
     </div>
 
-    <div id="drop" class="glass">
-      <b>Kéo thả ROM (.gba / .zip) vào đây</b> hoặc
-      <label class="btn" for="romIn" style="margin-left:6px">＋ Thêm ROM</label>
+    <div class="toolbar">
+      <input id="q" type="search" placeholder="Tìm game…" aria-label="Tìm game">
+      <select id="sortSel" aria-label="Sắp xếp"><option value="recent">Chơi gần đây</option><option value="name">Tên A–Z</option></select>
+      <label class="btn" for="romIn">＋ Thêm ROM</label>
       <input id="romIn" type="file" accept=".gba,.zip,.7z" multiple>
-      <div style="margin-top:8px;font-size:12px">ROM nằm trong trình duyệt (và nơi đồng bộ nếu đã đăng nhập), không gửi cho ai khác.</div>
+      <label class="chk"><input type="checkbox" id="resume" checked> Tiếp tục từ lần trước</label>
     </div>
-    <div class="opts">
-      <label class="chk"><input type="checkbox" id="resume" checked> Tiếp tục từ lần chơi trước (auto-save state)</label>
-    </div>
+    <div id="drop" class="glass"><b>Kéo thả ROM (.gba / .zip) vào đây</b> · ROM nằm trong trình duyệt (và nơi đồng bộ nếu đã đăng nhập), không gửi cho ai khác.</div>
     <div id="list"></div>
     <input id="patchIn" type="file" accept=".ips,.ups,.bps">
     <div class="tip">
@@ -391,35 +410,60 @@ const drop=$('drop');
 drop.addEventListener('drop',e=>addFiles([...e.dataTransfer.files]));
 
 let patchTarget=null;
-function hue(str){ let h=0; for(const c of str) h=(h*31+c.charCodeAt(0))%360; return h; }
+const PALS=[['#ff8a3d','#ff3d8b'],['#2ee6a6','#1d9bf0'],['#ffd23f','#ff7a45'],['#38bdf8','#2ee6a6'],['#c6ff3d','#2ee6a6'],['#ff5d8f','#ff9a3d'],['#4facfe','#00e5c0'],['#ff6b6b','#ffd23f']];
+function pal(str){ let h=0; for(const c of str) h=(h*31+c.charCodeAt(0))>>>0; return PALS[h%PALS.length]; }
 function initials(str){ const w=str.replace(/[\[\(].*$/,'').trim().split(/[\s_\-.]+/).filter(Boolean); return ((w[0]||'?')[0]+((w[1]||'')[0]||(w[0]||'')[1]||'')).toUpperCase(); }
+async function renderHero(roms,played){
+  const h=new Date().getHours(); const hello=h<11?'Chào buổi sáng':h<18?'Chào buổi chiều':'Chào buổi tối';
+  const el=$('hero'); el.className='tile hero-tile';
+  const last=[...roms].sort((a,b)=>(played[b]||0)-(played[a]||0))[0];
+  if(!last){
+    el.style.background='linear-gradient(135deg,#19c98f,#2f8cff)';
+    el.innerHTML=`<div class="hi"><h2>${hello}, TienNN3</h2><p>Chào mừng tới thư viện GBA của bạn.</p></div><div class="now"><small>Bắt đầu</small><b>Thêm ROM đầu tiên</b><span>Kéo thả file .gba vào trang hoặc bấm “Thêm ROM”.</span></div><div class="wm">GBA</div>`;
+    return;
+  }
+  const b=baseName(last), [c1,c2]=pal(b), sav=await idbGet('saves',b+'.sav');
+  el.style.background=`linear-gradient(135deg,${c1},${c2})`;
+  el.innerHTML=`<div class="hi"><h2>${hello}, TienNN3</h2><p>Tiếp tục cuộc phiêu lưu của bạn.</p></div>
+    <div class="now"><small>${played[last]?'Tiếp tục chơi':'Gợi ý cho bạn'}</small><b></b><span></span><br><button class="go">▶ Chơi tiếp</button></div><div class="wm"></div>`;
+  el.querySelector('b').textContent=b; el.querySelector('.wm').textContent=initials(b);
+  el.querySelector('span').textContent=sav?'Save gần nhất: '+fmtTime(sav.time):(played[last]?'Chơi lần cuối: '+fmtTime(played[last]):'Chưa có save');
+  el.querySelector('.go').onclick=()=>play(last);
+}
 async function renderList(){
-  const roms=(await idbKeys('roms')).sort((a,b)=>a.localeCompare(b));
+  let roms=(await idbKeys('roms'));
   const keys=await idbKeys('saves');
+  const played=(await idbGet('meta','played'))||{};
   $('sGames').textContent=roms.length;
   $('sSaves').textContent=keys.filter(k=>k.endsWith('.sav')).length;
   $('sStates').textContent=keys.filter(k=>k.endsWith('.state')).length;
+  await renderHero(roms,played);
+  const q=($('q').value||'').toLowerCase().trim();
+  if(q) roms=roms.filter(n=>n.toLowerCase().includes(q));
+  roms.sort($('sortSel').value==='name'?((a,b)=>a.localeCompare(b)):((a,b)=>(played[b]||0)-(played[a]||0)||a.localeCompare(b)));
   const box=$('list'); box.innerHTML='';
-  if(!roms.length){ box.innerHTML='<div class="empty glass">Chưa có game nào. Thêm ROM hoặc đăng nhập Dropbox rồi bấm Đồng bộ.</div>'; return; }
+  if(!roms.length){ box.innerHTML='<div class="empty glass">'+(q?'Không tìm thấy game nào.':'Chưa có game nào. Thêm ROM hoặc đăng nhập Dropbox rồi bấm Đồng bộ.')+'</div>'; return; }
+  let i=0;
   for(const n of roms){
     const b=baseName(n);
     const sav=await idbGet('saves',b+'.sav');
     const nStates=keys.filter(k=>k.startsWith(b+'.')&&k.endsWith('.state')).length;
-    const d=document.createElement('div'); d.className='game glass';
-    d.innerHTML=`<div class="art"></div><div class="t"></div><div class="m"></div><div class="row"></div>`;
-    const h=(hue(b)%250+340)%360; const art=d.querySelector('.art');
-    art.style.background=`linear-gradient(135deg,hsl(${h} 95% 60%),hsl(${(h+45)%360} 100% 52%))`; art.textContent=initials(b);
+    const [c1,c2]=pal(b);
+    const d=document.createElement('div'); d.className='game glass'; d.style.setProperty('--i',i++); d.style.setProperty('--glow',c1+'55');
+    d.innerHTML=`<div class="art"><span class="tag"></span><span class="ini"></span><span class="play">▶</span></div><div class="t"></div><div class="m"></div><div class="row"></div>`;
+    const art=d.querySelector('.art'); art.style.background=`linear-gradient(145deg,${c1},${c2})`; art.querySelector('.ini').textContent=initials(b);
+    const tag=art.querySelector('.tag'); if(sav||nStates) tag.textContent=(sav?'💾':'')+(nStates?` ${nStates} state`:''); else tag.remove();
+    art.onclick=()=>play(n);
     d.querySelector('.t').textContent=b;
-    d.querySelector('.m').textContent=(sav?'Save: '+fmtTime(sav.time):'Chưa có save')+(nStates?` · ${nStates} state`:'');
+    d.querySelector('.m').textContent=sav?'Save: '+fmtTime(sav.time):'Chưa có save';
     const r=d.querySelector('.row');
-    const mk=(txt,cls,fn)=>{ const x=document.createElement('button'); x.textContent=txt; if(cls) x.className=cls; x.onclick=fn; r.appendChild(x); };
-    mk('▶ Chơi','',()=>play(n));
+    const mk=(txt,cls,fn)=>{ const x=document.createElement('button'); x.textContent=txt; x.className=cls; x.onclick=fn; r.appendChild(x); };
     mk('Patch','ghost small',()=>{ patchTarget=n; $('patchIn').click(); });
     mk('Xoá','ghost small',async()=>{ if(!confirm(`Xoá ROM "${n}" khỏi thư viện${dirOK?' và nơi đồng bộ':''}? Save vẫn được giữ.`)) return; await idbDel('roms',n); if(dirOK) await dRemove('roms',n); renderList(); });
     box.appendChild(d);
   }
 }
-(function greet(){ const h=new Date().getHours(); $('hello').textContent=h<11?'Chào buổi sáng':h<18?'Chào buổi chiều':'Chào buổi tối'; })();
+$('q').addEventListener('input',renderList); $('sortSel').addEventListener('change',renderList);
 
 /* ---------- Áp patch IPS / UPS / BPS ---------- */
 function vint(p,st){ let data=0, shift=1; for(;;){ const x=p[st.i++]; data+=(x&0x7f)*shift; if(x&0x80) break; shift*=128; data+=shift; } return data; }
@@ -542,6 +586,7 @@ async function play(name){
   const cheatsTxt=(await idbGet('cheats',base))||'';
   const resume=$('resume').checked && !!autoRec;
   cur={name,base,cheatsTxt};
+  { const pl=(await idbGet('meta','played'))||{}; pl[name]=Date.now(); await idbPut('meta','played',pl); }
   cfg={
     url:URL.createObjectURL(blob), name:base, path:EJS_PATH, cheats:parseCheats(cheatsTxt),
     opts:{ 'save-state-location':'browser', 'save-save-interval':'10', 'rewindEnabled':'enabled' },
