@@ -6,9 +6,9 @@
 <title>GBA Online</title>
 <style>
   :root{
-    --bg:#0b0a14; --fg:#f2f1fa; --muted:#a39fc0; --line:rgba(255,255,255,.12);
+    --bg:#06141d; --fg:#f2f1fa; --muted:#a39fc0; --line:rgba(255,255,255,.12);
     --glass:rgba(255,255,255,.06); --glass2:rgba(255,255,255,.10);
-    --a1:#8b6bff; --a2:#27d3f5; --a3:#ff6bb5; --ok:#3ee0a0; --warn:#ffb648;
+    --a1:#14d9a5; --a2:#3b9cff; --a3:#ff5da2; --sun:#ffc531; --ok:#8cff7a; --warn:#ffb648;
     --grad:linear-gradient(135deg,var(--a1),var(--a2));
     --r:18px;
   }
@@ -18,36 +18,36 @@
     font-family:ui-sans-serif,-apple-system,"SF Pro Display","Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
   /* nền: các quả cầu màu mờ phía sau lớp kính */
   body::before,body::after{content:"";position:fixed;z-index:-1;border-radius:50%;filter:blur(90px);opacity:.55;pointer-events:none}
-  body::before{width:520px;height:520px;left:-120px;top:-120px;background:radial-gradient(circle,#6d4dff,transparent 70%)}
-  body::after{width:560px;height:560px;right:-160px;bottom:-160px;background:radial-gradient(circle,#18b9e0,transparent 70%)}
-  .orb{position:fixed;z-index:-1;width:380px;height:380px;right:18%;top:8%;border-radius:50%;filter:blur(100px);opacity:.30;background:radial-gradient(circle,#ff4fa8,transparent 70%);pointer-events:none}
+  body::before{width:520px;height:520px;left:-120px;top:-120px;background:radial-gradient(circle,#10e0b0,transparent 70%)}
+  body::after{width:560px;height:560px;right:-160px;bottom:-160px;background:radial-gradient(circle,#ff9f1c,transparent 70%)}
+  .orb{position:fixed;z-index:-1;width:380px;height:380px;right:18%;top:8%;border-radius:50%;filter:blur(100px);opacity:.30;background:radial-gradient(circle,#ff3d8b,transparent 70%);pointer-events:none}
   .glass{background:var(--glass);border:1px solid var(--line);border-radius:var(--r);
     -webkit-backdrop-filter:blur(20px) saturate(150%);backdrop-filter:blur(20px) saturate(150%);
     box-shadow:0 8px 32px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08)}
   /* topbar */
   .wrap{max-width:1080px;margin:0 auto;padding:16px}
   .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;position:sticky;top:12px;z-index:5;margin-bottom:18px}
-  .logo{width:38px;height:38px;border-radius:12px;background:var(--grad);display:grid;place-items:center;font-size:20px;box-shadow:0 6px 18px rgba(139,107,255,.45)}
+  .logo{width:38px;height:38px;border-radius:12px;background:var(--grad);display:grid;place-items:center;font-size:20px;box-shadow:0 6px 18px rgba(20,217,165,.45)}
   .brand{display:flex;flex-direction:column;line-height:1.15;margin-right:auto}
   .brand b{font-size:16px;letter-spacing:.2px}
   .brand span{font-size:12px;color:var(--muted)}
   /* nút */
   button,label.btn,select{font-family:inherit;font-size:13.5px;border:0;color:#fff;cursor:pointer;padding:9px 14px;border-radius:12px;
-    background:var(--grad);font-weight:600;transition:transform .12s,filter .15s,background .15s;box-shadow:0 4px 14px rgba(110,90,255,.35)}
+    background:var(--grad);font-weight:600;transition:transform .12s,filter .15s,background .15s;box-shadow:0 4px 14px rgba(59,156,255,.38)}
   button:hover,label.btn:hover{filter:brightness(1.12);transform:translateY(-1px)}
   button:active{transform:translateY(0)}
   button.ghost,label.btn.ghost,select{background:var(--glass2);border:1px solid var(--line);box-shadow:none;font-weight:500;
     -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
   button.ghost:hover,label.btn.ghost:hover{background:rgba(255,255,255,.17)}
   button.small{padding:6px 10px;font-size:12px;border-radius:10px}
-  button.on{background:linear-gradient(135deg,#27d3f5,#3ee0a0);color:#04221a;box-shadow:0 4px 14px rgba(39,211,245,.35)}
+  button.on{background:linear-gradient(135deg,#ffd23f,#ff8a3d);color:#2b1400;box-shadow:0 4px 14px rgba(255,170,60,.4)}
   button:disabled{opacity:.4;cursor:default;transform:none}
   select option{background:#1a1630;color:#fff}
   input[type=file]{display:none}
   input[type=checkbox]{accent-color:var(--a1);width:15px;height:15px}
   /* chip */
   .chip{font-size:12px;padding:5px 11px;border-radius:99px;background:var(--glass2);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
-  .chip.ok{background:rgba(62,224,160,.14);border-color:rgba(62,224,160,.35);color:var(--ok)}
+  .chip.ok{background:rgba(140,255,122,.14);border-color:rgba(140,255,122,.38);color:var(--ok)}
   .chip.warn{background:rgba(255,182,72,.14);border-color:rgba(255,182,72,.35);color:var(--warn)}
   /* hero + stats */
   .hero{padding:4px 4px 16px}
@@ -61,7 +61,7 @@
   .stat b.s{font-size:17px;line-height:1.5}
   /* drop */
   #drop{padding:22px;text-align:center;border-style:dashed;border-width:2px;border-color:rgba(255,255,255,.2);color:var(--muted);margin-bottom:14px;transition:.2s}
-  #drop.over{border-color:var(--a2);background:rgba(39,211,245,.10);color:#fff}
+  #drop.over{border-color:var(--sun);background:rgba(255,197,49,.10);color:#fff}
   #drop b{color:#fff;font-size:16px}
   .opts{display:flex;gap:10px;align-items:center;margin:4px 2px 12px;flex-wrap:wrap}
   label.chk{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center;cursor:pointer}
@@ -81,7 +81,7 @@
   #player{display:none}
   .panel{padding:12px 14px;margin-bottom:12px}
   #frameWrap{width:100%;aspect-ratio:3/2;max-height:72vh;background:#000;border-radius:16px;overflow:hidden;margin:0 auto 12px;
-    border:1px solid var(--line);box-shadow:0 0 0 6px rgba(255,255,255,.04),0 20px 60px rgba(0,0,0,.6), 0 0 80px rgba(139,107,255,.18)}
+    border:1px solid var(--line);box-shadow:0 0 0 6px rgba(255,255,255,.04),0 20px 60px rgba(0,0,0,.6), 0 0 80px rgba(20,217,165,.20)}
   iframe{width:100%;height:100%;border:0}
   .bar{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
   .bar+.bar{margin-top:10px}
@@ -407,8 +407,8 @@ async function renderList(){
     const nStates=keys.filter(k=>k.startsWith(b+'.')&&k.endsWith('.state')).length;
     const d=document.createElement('div'); d.className='game glass';
     d.innerHTML=`<div class="art"></div><div class="t"></div><div class="m"></div><div class="row"></div>`;
-    const h=hue(b); const art=d.querySelector('.art');
-    art.style.background=`linear-gradient(135deg,hsl(${h} 75% 52%),hsl(${(h+55)%360} 80% 42%))`; art.textContent=initials(b);
+    const h=(hue(b)%250+340)%360; const art=d.querySelector('.art');
+    art.style.background=`linear-gradient(135deg,hsl(${h} 95% 60%),hsl(${(h+45)%360} 100% 52%))`; art.textContent=initials(b);
     d.querySelector('.t').textContent=b;
     d.querySelector('.m').textContent=(sav?'Save: '+fmtTime(sav.time):'Chưa có save')+(nStates?` · ${nStates} state`:'');
     const r=d.querySelector('.row');
