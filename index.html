@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GBA Online</title>
+<style>
+  :root { --bg:#14121f; --card:#1f1b33; --fg:#eee; --muted:#9a96b5; --accent:#7c5cff; --ok:#3ecf8e; --warn:#f5a524; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font-family: system-ui, sans-serif; min-height:100vh; }
+  header { padding:12px 16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; border-bottom:1px solid #2c2748; }
+  h1 { font-size:18px; margin:0; flex:1; min-width:120px; }
+  button, label.btn, select { background:var(--accent); color:#fff; border:0; padding:8px 12px; border-radius:8px; font-size:14px; cursor:pointer; font-family:inherit; }
+  button.ghost, label.btn.ghost, select { background:#2c2748; }
+  button.small { padding:5px 9px; font-size:12px; }
+  button.on { background:var(--ok); color:#06210f; }
+  button:disabled { opacity:.45; cursor:default; }
+  main { max-width:1000px; margin:0 auto; padding:16px; }
+  #drop { border:2px dashed #3a3463; border-radius:14px; padding:26px 16px; text-align:center; background:var(--card); color:var(--muted); margin-bottom:16px; }
+  #drop.over { border-color:var(--accent); color:#fff; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .chip { font-size:12px; padding:4px 9px; border-radius:99px; background:#2c2748; color:var(--muted); }
+  .chip.ok { background:#12372a; color:var(--ok); }
+  .chip.warn { background:#3b2b0c; color:var(--warn); }
+  #list { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px; margin-top:12px; }
+  .game { background:var(--card); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px; }
+  .game .t { font-weight:600; word-break:break-word; }
+  .game .m { font-size:12px; color:var(--muted); }
+  #player { display:none; }
+  #frameWrap { width:100%; aspect-ratio:3/2; max-height:72vh; background:#000; border-radius:10px; overflow:hidden; margin:10px auto; }
+  iframe { width:100%; height:100%; border:0; }
+  .bar { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:6px 0; }
+  .bar .sep { width:1px; height:22px; background:#3a3463; margin:0 4px; }
+  .tip { color:var(--muted); font-size:13px; line-height:1.7; margin-top:14px; }
+  .tip kbd { background:#2c2748; padding:1px 6px; border-radius:4px; }
+  dialog { background:var(--card); color:var(--fg); border:1px solid #3a3463; border-radius:12px; width:min(520px,92vw); }
+  dialog textarea { width:100%; height:180px; background:#14121f; color:var(--fg); border:1px solid #3a3463; border-radius:8px; padding:8px; font-family:monospace; }
+  #toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:#000c; padding:9px 16px; border-radius:99px; font-size:14px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:9; max-width:90vw; }
+  #toast.show { opacity:1; }
+  input[type=file] { display:none; }
+  label.chk { font-size:13px; color:var(--muted); display:flex; gap:6px; align-items:center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎮 GBA Online</h1>
+  <span id="driveChip" class="chip">Drive: chưa kết nối</span>
+  <button id="btnDrive" class="ghost">Kết nối thư mục Drive</button>
+  <button id="btnSync" class="ghost" disabled>Đồng bộ</button>
+</header>
+
+<main>
+  <!-- THƯ VIỆN -->
+  <section id="library">
+    <div id="drop">
+      <b style="color:#fff">Kéo thả ROM (.gba / .zip) vào đây</b> hoặc
+      <label class="btn" for="romIn" style="margin-left:6px">Thêm ROM</label>
+      <input id="romIn" type="file" accept=".gba,.zip,.7z" multiple>
+      <div style="margin-top:8px;font-size:12px">ROM nằm trong trình duyệt (và thư mục Drive nếu đã kết nối), không gửi lên server nào.</div>
+    </div>
+    <div class="row">
+      <label class="chk"><input type="checkbox" id="resume" checked> Tiếp tục từ lần chơi trước (auto-save state)</label>
+    </div>
+    <div id="list"></div>
+    <input id="patchIn" type="file" accept=".ips,.ups,.bps">
+    <div class="tip">
+      <b>Thư mục Drive</b>: bấm “Kết nối thư mục Drive” rồi chọn thư mục trong Google Drive for Desktop, ví dụ <i>Drive/GBA</i>.
+      Trang tự tạo <code>roms/</code> và <code>saves/</code> trong đó. Mọi ROM, save in-game và save state được ghi vào đó và đọc lại khi “Đồng bộ”.<br>
+      Cần Chrome/Edge trên máy tính. Safari, Firefox và điện thoại không hỗ trợ thư mục, khi đó trang dùng bộ nhớ trình duyệt và bạn xuất/nhập file save thủ công.
+    </div>
+  </section>
+
+  <!-- MÀN HÌNH CHƠI -->
+  <section id="player">
+    <div class="bar">
+      <button class="ghost" id="bBack">← Thư viện</button>
+      <b id="gTitle" style="flex:1"></b>
+      <span id="padChip" class="chip">Tay cầm: chưa thấy</span>
+    </div>
+    <div id="frameWrap"><iframe id="frame" allow="gamepad; autoplay; fullscreen"></iframe></div>
+
+    <div class="bar">
+      <select id="slot"></select>
+      <button id="bSave">💾 Lưu nhanh (F5)</button>
+      <button id="bLoad" class="ghost">📂 Tải (F9)</button>
+      <span class="sep"></span>
+      <span class="chip">Tốc độ</span>
+      <span id="speeds" class="row"></span>
+      <button id="bRew" class="ghost">⏪ Tua ngược (giữ / phím E)</button>
+    </div>
+    <div class="bar">
+      <button class="ghost" id="bCheat">Cheat…</button>
+      <button class="ghost" id="bExpSav">Xuất .sav</button>
+      <label class="btn ghost" for="impSav">Nhập .sav</label><input id="impSav" type="file" accept=".sav,.srm">
+      <button class="ghost" id="bExpState">Xuất state</button>
+      <label class="btn ghost" for="impState">Nhập state</label><input id="impState" type="file" accept=".state,.sst,.ss0">
+      <button class="ghost" id="bFull">Toàn màn hình</button>
+    </div>
+    <div class="tip">
+      Phím tắt: <kbd>F5</kbd> lưu nhanh, <kbd>F9</kbd> tải, giữ <kbd>Space</kbd> để tua nhanh, giữ <kbd>E</kbd> để tua ngược.
+      Phím game mặc định: mũi tên, <kbd>Z</kbd>=B, <kbd>X</kbd>=A, <kbd>A</kbd>=L, <kbd>S</kbd>=R, <kbd>Enter</kbd>=Start, <kbd>V</kbd>=Select.
+      Gán lại phím và tay cầm: nút bánh răng trên thanh điều khiển của màn hình game.
+    </div>
+  </section>
+</main>
+
+<dialog id="cheatDlg">
+  <b>Cheat (mỗi dòng: <code>Tên | MÃ</code>)</b>
+  <p style="font-size:12px;color:var(--muted)">Dùng mã GameShark/Action Replay đúng loại của game. Lưu xong game khởi động lại để áp dụng.</p>
+  <textarea id="cheatTxt" placeholder="Infinite HP | 82003224 0063"></textarea>
+  <div class="row" style="margin-top:10px;justify-content:flex-end">
+    <button class="ghost" id="cCancel">Đóng</button><button id="cSave">Lưu &amp; khởi động lại</button>
+  </div>
+</dialog>
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const EJS_PATH = 'https://cdn.emulatorjs.org/stable/data/';
+
+/* ---------- tiện ích ---------- */
+let toastT;
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2600); }
+const baseName = n => n.replace(/\.[^.]+$/,'');
+const fmtTime = t => new Date(t).toLocaleString('vi-VN',{hour12:false});
+function download(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); }
+function eqBytes(a,b){ if(!a||!b||a.length!==b.length) return false; for(let i=0;i<a.length;i++) if(a[i]!==b[i]) return false; return true; }
+
+/* ---------- IndexedDB ---------- */
+const dbp = new Promise((res,rej)=>{
+  const r=indexedDB.open('gbaonline',1);
+  r.onupgradeneeded=()=>{ ['roms','saves','meta','cheats'].forEach(s=>r.result.createObjectStore(s)); };
+  r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+});
+const tx=(s,m,f)=>dbp.then(d=>new Promise((res,rej)=>{ const t=d.transaction(s,m); const q=f(t.objectStore(s)); t.oncomplete=()=>res(q&&q.result); t.onerror=()=>rej(t.error); }));
+const idbGet=(s,k)=>tx(s,'readonly',o=>o.get(k));
+const idbPut=(s,k,v)=>tx(s,'readwrite',o=>o.put(v,k));
+const idbDel=(s,k)=>tx(s,'readwrite',o=>o.delete(k));
+const idbKeys=s=>tx(s,'readonly',o=>o.getAllKeys());
+
+/* ---------- Thư mục Drive (File System Access API) ---------- */
+let dir=null, dirOK=false;
+const hasFSA = 'showDirectoryPicker' in window;
+function driveUI(){
+  const c=$('driveChip');
+  if(!hasFSA){ c.textContent='Drive: trình duyệt không hỗ trợ'; c.className='chip warn'; $('btnDrive').disabled=true; return; }
+  if(dir && dirOK){ c.textContent='Drive: '+dir.name; c.className='chip ok'; $('btnDrive').textContent='Đổi thư mục'; $('btnSync').disabled=false; }
+  else if(dir){ c.textContent='Drive: cần cấp lại quyền ('+dir.name+')'; c.className='chip warn'; $('btnDrive').textContent='Cấp lại quyền'; $('btnSync').disabled=true; }
+  else { c.textContent='Drive: chưa kết nối'; c.className='chip'; $('btnDrive').textContent='Kết nối thư mục Drive'; $('btnSync').disabled=true; }
+}
+async function initDir(){
+  if(hasFSA){ try{ dir=await idbGet('meta','dir'); if(dir) dirOK=(await dir.queryPermission({mode:'readwrite'}))==='granted'; }catch(e){ dir=null; } }
+  driveUI();
+}
+$('btnDrive').onclick = async ()=>{
+  try{
+    if(dir && !dirOK){ dirOK=(await dir.requestPermission({mode:'readwrite'}))==='granted'; }
+    else { dir=await showDirectoryPicker({mode:'readwrite', id:'gbaonline'}); await idbPut('meta','dir',dir); dirOK=true; }
+    driveUI();
+    if(dirOK){ toast('Đã kết nối, đang đồng bộ…'); await syncAll(); }
+  }catch(e){ if(e.name!=='AbortError') toast('Không kết nối được: '+e.message); }
+};
+const sub = n => dir.getDirectoryHandle(n,{create:true});
+async function dWrite(folder,name,blob){ const d=await sub(folder); const fh=await d.getFileHandle(name,{create:true}); const w=await fh.createWritable(); await w.write(blob); await w.close(); }
+async function dRead(folder,name){ try{ const d=await sub(folder); return await (await d.getFileHandle(name)).getFile(); }catch(e){ return null; } }
+async function dList(folder){ const d=await sub(folder); const out=[]; for await (const [n,h] of d.entries()) if(h.kind==='file') out.push(n); return out; }
+async function dRemove(folder,name){ try{ const d=await sub(folder); await d.removeEntry(name); }catch(e){} }
+
+/* ---------- Lưu dữ liệu save (IDB + Drive) ---------- */
+// bản ghi: {data:Blob, time:ms}
+async function putSave(key, blob){
+  const time=Date.now();
+  await idbPut('saves',key,{data:blob,time});
+  if(dirOK){ try{ await dWrite('saves',key,blob); }catch(e){ toast('Ghi Drive lỗi: '+e.message); } }
+}
+async function syncKey(key){
+  const local=await idbGet('saves',key);
+  const remote=dirOK? await dRead('saves',key):null;
+  if(remote && (!local || remote.lastModified > local.time+2000)){ await idbPut('saves',key,{data:remote,time:remote.lastModified}); return 'down'; }
+  if(local && dirOK && (!remote || local.time > remote.lastModified+2000)){ await dWrite('saves',key,local.data); return 'up'; }
+  return 'same';
+}
+async function syncGame(base){
+  if(!dirOK) return;
+  const names=new Set((await idbKeys('saves')).concat(await dList('saves')));
+  for(const k of names) if(k.startsWith(base+'.') && /\.(sav|state)$/.test(k)) await syncKey(k);
+}
+async function syncAll(){
+  if(!dirOK){ toast('Chưa kết nối Drive'); return; }
+  $('btnSync').disabled=true;
+  try{
+    const driveRoms=await dList('roms'), local=await idbKeys('roms');
+    let down=0, up=0;
+    for(const n of driveRoms) if(/\.(gba|zip|7z)$/i.test(n) && !local.includes(n)){ await idbPut('roms',n,await dRead('roms',n)); down++; }
+    for(const n of local) if(!driveRoms.includes(n)){ await dWrite('roms',n,await idbGet('roms',n)); up++; }
+    const names=new Set((await idbKeys('saves')).concat(await dList('saves')));
+    let sv=0;
+    for(const k of names) if(/\.(sav|state)$/.test(k)){ const r=await syncKey(k); if(r!=='same') sv++; }
+    toast(`Đồng bộ xong: ROM ↓${down} ↑${up}, save đổi ${sv}`);
+  }catch(e){ toast('Đồng bộ lỗi: '+e.message); }
+  $('btnSync').disabled=false; renderList();
+}
+$('btnSync').onclick=syncAll;
+
+/* ---------- Thư viện ROM ---------- */
+async function addRom(file){
+  await idbPut('roms',file.name,file);
+  if(dirOK){ try{ await dWrite('roms',file.name,file); }catch(e){ toast('Ghi ROM lên Drive lỗi'); } }
+}
+async function addFiles(files){
+  let n=0; for(const f of files){ if(/\.(gba|zip|7z)$/i.test(f.name)){ await addRom(f); n++; } }
+  toast(n? `Đã thêm ${n} ROM` : 'Chỉ nhận .gba/.zip/.7z'); renderList();
+}
+$('romIn').onchange=e=>{ addFiles([...e.target.files]); e.target.value=''; };
+const drop=$('drop');
+['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',e=>addFiles([...e.dataTransfer.files]));
+
+let patchTarget=null;
+async function renderList(){
+  const roms=(await idbKeys('roms')).sort((a,b)=>a.localeCompare(b));
+  const keys=await idbKeys('saves');
+  const box=$('list'); box.innerHTML='';
+  if(!roms.length){ box.innerHTML='<div class="tip">Chưa có game nào. Thêm ROM hoặc kết nối Drive rồi bấm Đồng bộ.</div>'; return; }
+  for(const n of roms){
+    const b=baseName(n);
+    const sav=await idbGet('saves',b+'.sav');
+    const nStates=keys.filter(k=>k.startsWith(b+'.')&&k.endsWith('.state')).length;
+    const d=document.createElement('div'); d.className='game';
+    d.innerHTML=`<div class="t"></div><div class="m"></div><div class="row"></div>`;
+    d.querySelector('.t').textContent=b;
+    d.querySelector('.m').textContent=(sav?'Save: '+fmtTime(sav.time):'Chưa có save')+(nStates?` · ${nStates} state`:'');
+    const r=d.querySelector('.row');
+    const mk=(txt,cls,fn)=>{ const x=document.createElement('button'); x.textContent=txt; if(cls) x.className=cls; x.onclick=fn; r.appendChild(x); };
+    mk('▶ Chơi','',()=>play(n));
+    mk('Patch…','ghost small',()=>{ patchTarget=n; $('patchIn').click(); });
+    mk('Xoá','ghost small',async()=>{ if(!confirm(`Xoá ROM "${n}" khỏi thư viện${dirOK?' và thư mục Drive':''}? Save vẫn được giữ.`)) return; await idbDel('roms',n); if(dirOK) await dRemove('roms',n); renderList(); });
+    box.appendChild(d);
+  }
+}
+
+/* ---------- Áp patch IPS / UPS / BPS ---------- */
+function vint(p,st){ let data=0, shift=1; for(;;){ const x=p[st.i++]; data+=(x&0x7f)*shift; if(x&0x80) break; shift*=128; data+=shift; } return data; }
+function applyIPS(rom,p){
+  const dec=s=>String.fromCharCode(...p.slice(0,s)); if(dec(5)!=='PATCH') throw Error('IPS không hợp lệ');
+  let i=5, out=new Uint8Array(rom); const writes=[]; let maxLen=rom.length;
+  for(;;){
+    if(p[i]===0x45&&p[i+1]===0x4f&&p[i+2]===0x46){ i+=3; break; }
+    const off=(p[i]<<16)|(p[i+1]<<8)|p[i+2]; i+=3; let size=(p[i]<<8)|p[i+1]; i+=2;
+    if(size===0){ const cnt=(p[i]<<8)|p[i+1]; const v=p[i+2]; i+=3; writes.push([off,new Uint8Array(cnt).fill(v)]); maxLen=Math.max(maxLen,off+cnt); }
+    else { writes.push([off,p.slice(i,i+size)]); i+=size; maxLen=Math.max(maxLen,off+size); }
+  }
+  if(i+3===p.length) maxLen=(p[i]<<16)|(p[i+1]<<8)|p[i+2];
+  const res=new Uint8Array(maxLen); res.set(out.subarray(0,Math.min(out.length,maxLen)));
+  for(const [o,d] of writes) res.set(d,o);
+  return res;
+}
+function applyUPS(rom,p){
+  if(String.fromCharCode(...p.slice(0,4))!=='UPS1') throw Error('UPS không hợp lệ');
+  const st={i:4}; vint(p,st); const outSize=vint(p,st);
+  const res=new Uint8Array(outSize); res.set(rom.subarray(0,Math.min(rom.length,outSize)));
+  let pos=0; const end=p.length-12;
+  while(st.i<end){ pos+=vint(p,st); while(st.i<end){ const b=p[st.i++]; if(b===0){ pos++; break; } res[pos]=(res[pos]||0)^b; pos++; } }
+  return res;
+}
+function applyBPS(rom,p){
+  if(String.fromCharCode(...p.slice(0,4))!=='BPS1') throw Error('BPS không hợp lệ');
+  const st={i:4}; vint(p,st); const tgtSize=vint(p,st); const meta=vint(p,st); st.i+=meta;
+  const out=new Uint8Array(tgtSize); let o=0, srcRel=0, tgtRel=0; const end=p.length-12;
+  while(st.i<end){
+    const data=vint(p,st); const cmd=data%4, len=Math.floor(data/4)+1;
+    if(cmd===0){ for(let k=0;k<len;k++){ out[o]=rom[o]; o++; } }
+    else if(cmd===1){ for(let k=0;k<len;k++) out[o++]=p[st.i++]; }
+    else if(cmd===2){ const d=vint(p,st); srcRel+=(d&1?-1:1)*Math.floor(d/2); for(let k=0;k<len;k++) out[o++]=rom[srcRel++]; }
+    else { const d=vint(p,st); tgtRel+=(d&1?-1:1)*Math.floor(d/2); for(let k=0;k<len;k++) out[o++]=out[tgtRel++]; }
+  }
+  return out;
+}
+$('patchIn').onchange=async e=>{
+  const pf=e.target.files[0]; e.target.value=''; if(!pf||!patchTarget) return;
+  try{
+    const romFile=await idbGet('roms',patchTarget);
+    if(!/\.gba$/i.test(patchTarget)) throw Error('Chỉ patch được file .gba (giải nén .zip trước)');
+    const rom=new Uint8Array(await romFile.arrayBuffer()), p=new Uint8Array(await pf.arrayBuffer());
+    const ext=pf.name.split('.').pop().toLowerCase();
+    const res= ext==='ips'?applyIPS(rom,p): ext==='ups'?applyUPS(rom,p): applyBPS(rom,p);
+    const name=baseName(patchTarget)+' ['+baseName(pf.name)+'].gba';
+    await addRom(new File([res],name)); toast('Đã tạo: '+name); renderList();
+  }catch(err){ toast('Patch lỗi: '+err.message); }
+};
+
+/* ---------- Trình phát ---------- */
+let cur=null;      // {name, base, cheats}
+let gm=null;       // gameManager của EmulatorJS
+let cfg=null;
+let ffRatio=3, speed=1, lastSav=null;
+const SPEEDS=[0.5,1,2,3,4,8];
+const frame=$('frame');
+const SLOTS=[1,2,3,4,5];
+
+function buildSpeeds(){
+  const b=$('speeds'); b.innerHTML='';
+  for(const s of SPEEDS){ const x=document.createElement('button'); x.className='small '+(s===speed?'on':'ghost'); x.textContent=s+'x'; x.onclick=()=>setSpeed(s); b.appendChild(x); }
+}
+function setSpeed(s){
+  speed=s; buildSpeeds(); if(!gm) return;
+  try{
+    gm.toggleFastForward(0); gm.toggleSlowMotion(0);
+    if(s>1){ gm.setFastForwardRatio(s); gm.toggleFastForward(1); ffRatio=s; }
+    else if(s<1){ gm.setSlowMotionRatio(1/s); gm.toggleSlowMotion(1); }
+  }catch(e){ toast('Không đổi được tốc độ: '+e.message); }
+}
+function turbo(on){ if(!gm) return; try{ if(on){ gm.setFastForwardRatio(Math.max(ffRatio,speed>1?speed:3)); gm.toggleFastForward(1);} else { if(speed>1){ gm.setFastForwardRatio(speed); } else gm.toggleFastForward(0); } }catch(e){} }
+function rewind(on){ if(!gm) return; try{ gm.simulateInput(0,28,on?1:0); }catch(e){} }
+
+async function refreshSlots(){
+  const s=$('slot'); const keep=s.value; s.innerHTML='';
+  for(const n of SLOTS){
+    const r=await idbGet('saves',`${cur.base}.slot${n}.state`);
+    const o=document.createElement('option'); o.value=n; o.textContent=`Slot ${n} — `+(r?fmtTime(r.time):'trống'); s.appendChild(o);
+  }
+  if(keep) s.value=keep;
+}
+function getSavBytes(){ try{ const b=gm.getSaveFile(); return b&&b.length? new Uint8Array(b):null; }catch(e){ return null; } }
+async function persistSav(bytes){
+  if(!bytes||eqBytes(bytes,lastSav)) return;
+  lastSav=bytes.slice(); await putSave(cur.base+'.sav', new Blob([bytes]));
+}
+async function quickSave(){
+  if(!gm) return;
+  try{
+    const n=$('slot').value||1; const st=gm.getState();
+    await putSave(`${cur.base}.slot${n}.state`, new Blob([st]));
+    await persistSav(getSavBytes());
+    toast(`Đã lưu vào slot ${n}`); refreshSlots();
+  }catch(e){ toast('Lưu nhanh lỗi: '+e.message); }
+}
+async function quickLoad(){
+  if(!gm) return;
+  const n=$('slot').value||1; const r=await idbGet('saves',`${cur.base}.slot${n}.state`);
+  if(!r){ toast(`Slot ${n} trống`); return; }
+  try{ gm.loadState(new Uint8Array(await r.data.arrayBuffer())); toast(`Đã tải slot ${n}`); }catch(e){ toast('Tải lỗi: '+e.message); }
+}
+async function autoSave(){
+  if(!gm||!cur) return;
+  try{ await persistSav(getSavBytes()); await putSave(cur.base+'.auto.state', new Blob([gm.getState()])); }catch(e){}
+}
+$('bSave').onclick=quickSave; $('bLoad').onclick=quickLoad;
+
+function parseCheats(txt){
+  return (txt||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ const i=l.indexOf('|'); return i<0?[l,l]:[l.slice(0,i).trim(),l.slice(i+1).trim()]; });
+}
+
+async function play(name){
+  const blob=await idbGet('roms',name); if(!blob){ toast('Không tìm thấy ROM'); return; }
+  const base=baseName(name);
+  if(dirOK){ toast('Đang đồng bộ save…'); try{ await syncGame(base); }catch(e){} }
+  const savRec=await idbGet('saves',base+'.sav');
+  const autoRec=await idbGet('saves',base+'.auto.state');
+  const cheatsTxt=(await idbGet('cheats',base))||'';
+  const resume=$('resume').checked && !!autoRec;
+  cur={name,base,cheatsTxt};
+  cfg={
+    url:URL.createObjectURL(blob), name:base, path:EJS_PATH, cheats:parseCheats(cheatsTxt),
+    opts:{ 'save-state-location':'browser', 'save-save-interval':'10', 'rewindEnabled':'enabled' },
+    stateUrl: resume? URL.createObjectURL(autoRec.data):null,
+    sav: (!resume && savRec)? new Uint8Array(await savRec.data.arrayBuffer()):null,
+  };
+  window.__cfg=cfg; lastSav=cfg.sav?cfg.sav.slice():null; gm=null; speed=1; buildSpeeds();
+  $('gTitle').textContent=base; $('library').style.display='none'; $('player').style.display='block';
+  await refreshSlots();
+  frame.srcdoc=`<!doctype html><html><body style="margin:0;background:#000"><div id="g" style="width:100vw;height:100vh"></div>
+<script>
+const c=parent.__cfg;
+EJS_player='#g'; EJS_core='gba'; EJS_gameUrl=c.url; EJS_gameName=c.name; EJS_pathtodata=c.path;
+EJS_startOnLoaded=true; EJS_threads=false; EJS_cheats=c.cheats; EJS_defaultOptions=c.opts;
+if(c.stateUrl) EJS_loadStateURL=c.stateUrl;
+EJS_onGameStart=()=>parent.onGameStart();
+EJS_onSaveSave=e=>parent.onSavEvent(e);
+<\/script><script src="${EJS_PATH}loader.js"><\/script></body></html>`;
+}
+
+window.onGameStart=function(){
+  const w=frame.contentWindow; gm=w.EJS_emulator && w.EJS_emulator.gameManager;
+  const doc=w.document; doc.addEventListener('keydown',hotkey); doc.addEventListener('keyup',hotkeyUp);
+  if(cfg.sav){
+    setTimeout(()=>{ try{ gm.FS.writeFile(gm.getSaveFilePath(), cfg.sav); gm.loadSaveFiles(); toast('Đã nạp save từ '+(dirOK?'Drive/trình duyệt':'trình duyệt')); }catch(e){ toast('Không nạp được save: '+e.message); } },1200);
+  }
+};
+window.onSavEvent=function(e){ try{ const d=e&&(e.save||e); persistSav(new Uint8Array(d)); }catch(err){} };
+
+async function back(){
+  await autoSave();
+  gm=null; frame.srcdoc=''; if(cfg){ URL.revokeObjectURL(cfg.url); if(cfg.stateUrl) URL.revokeObjectURL(cfg.stateUrl); }
+  $('player').style.display='none'; $('library').style.display='block'; cur=null; renderList();
+}
+$('bBack').onclick=back;
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) autoSave(); });
+addEventListener('pagehide',()=>autoSave());
+
+/* phím tắt */
+function hotkey(e){
+  if(!cur) return;
+  if(e.key==='F5'){ e.preventDefault(); quickSave(); }
+  else if(e.key==='F9'){ e.preventDefault(); quickLoad(); }
+  else if(e.code==='Space' && !e.repeat){ e.preventDefault(); turbo(true); }
+  else if((e.key==='e'||e.key==='E') && !e.repeat){ rewind(true); }
+}
+function hotkeyUp(e){
+  if(!cur) return;
+  if(e.code==='Space'){ turbo(false); }
+  else if(e.key==='e'||e.key==='E'){ rewind(false); }
+}
+document.addEventListener('keydown',hotkey); document.addEventListener('keyup',hotkeyUp);
+const rb=$('bRew');
+['mousedown','touchstart'].forEach(t=>rb.addEventListener(t,e=>{e.preventDefault();rewind(true);}));
+['mouseup','mouseleave','touchend'].forEach(t=>rb.addEventListener(t,()=>rewind(false)));
+
+/* xuất / nhập */
+$('bExpSav').onclick=()=>{ const b=getSavBytes(); if(!b) return toast('Game chưa có dữ liệu save'); download(new Blob([b]),cur.base+'.sav'); };
+$('impSav').onchange=async e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  const b=new Uint8Array(await f.arrayBuffer()); lastSav=b.slice(); await putSave(cur.base+'.sav',new Blob([b]));
+  try{ gm.FS.writeFile(gm.getSaveFilePath(),b); gm.loadSaveFiles(); gm.restart&&gm.restart(); toast('Đã nhập save'); }catch(err){ toast('Đã lưu, vào lại game để áp dụng'); }
+};
+$('bExpState').onclick=()=>{ try{ download(new Blob([gm.getState()]),cur.base+'.state'); }catch(e){ toast('Không xuất được state'); } };
+$('impState').onchange=async e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{ gm.loadState(new Uint8Array(await f.arrayBuffer())); toast('Đã nhập state'); }catch(err){ toast('State không hợp lệ'); }
+};
+$('bFull').onclick=()=>{ (frame.requestFullscreen||frame.webkitRequestFullscreen).call(frame); };
+
+/* cheat */
+$('bCheat').onclick=()=>{ $('cheatTxt').value=cur.cheatsTxt||''; $('cheatDlg').showModal(); };
+$('cCancel').onclick=()=>$('cheatDlg').close();
+$('cSave').onclick=async()=>{ const t=$('cheatTxt').value; await idbPut('cheats',cur.base,t); $('cheatDlg').close(); const n=cur.name; await autoSave(); gm=null; frame.srcdoc=''; play(n); };
+
+/* tay cầm */
+addEventListener('gamepadconnected',e=>{ const c=$('padChip'); c.textContent='Tay cầm: '+e.gamepad.id.slice(0,32); c.className='chip ok'; toast('Đã nhận tay cầm'); });
+addEventListener('gamepaddisconnected',()=>{ const c=$('padChip'); c.textContent='Tay cầm: đã ngắt'; c.className='chip warn'; });
+
+/* khởi động */
+buildSpeeds(); initDir().then(renderList);
+if(navigator.storage&&navigator.storage.persist) navigator.storage.persist();
+</script>
+</body>
+</html>
