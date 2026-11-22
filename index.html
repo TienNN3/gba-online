@@ -785,6 +785,13 @@ const c=parent.__cfg;
 EJS_player='#g'; EJS_core='gba'; EJS_gameUrl=c.url; EJS_gameName=c.name; EJS_pathtodata=c.path;
 EJS_startOnLoaded=true; EJS_threads=false; EJS_cheats=c.cheats; EJS_defaultOptions=c.opts;
 if(c.stateUrl) EJS_loadStateURL=c.stateUrl;
+// tắt chữ OSD do RetroArch vẽ lên khung hình (vd. "Fast-Forward.") bằng cách thêm vào retroarch.cfg trước khi game khởi động
+(function hook(){
+  if(typeof EJS_GameManager!=='undefined'){
+    const o=EJS_GameManager.prototype.getRetroArchCfg;
+    EJS_GameManager.prototype.getRetroArchCfg=function(){ return o.call(this)+'notification_show_fast_forward = "false"\\nvideo_font_enable = "false"\\n'; };
+  } else setTimeout(hook,15);
+})();
 EJS_onGameStart=()=>parent.onGameStart();
 EJS_onSaveSave=e=>parent.onSavEvent(e);
 <\/script><script src="${EJS_PATH}loader.js"><\/script></body></html>`;
