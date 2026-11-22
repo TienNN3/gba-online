@@ -253,7 +253,7 @@
     <div class="tip">
       Phím tắt: <kbd>F5</kbd> lưu nhanh, <kbd>F9</kbd> tải, giữ <kbd>Space</kbd> để tua nhanh, giữ <kbd>E</kbd> để tua ngược.
       Phím game mặc định: mũi tên, <kbd>Z</kbd>=B, <kbd>X</kbd>=A, <kbd>A</kbd>=L, <kbd>S</kbd>=R, <kbd>Enter</kbd>=Start, <kbd>V</kbd>=Select.
-      Gán lại phím và tay cầm: nút bánh răng trên thanh điều khiển của màn hình game.
+      Gán lại phím và tay cầm: nút bánh răng trên thanh điều khiển của màn hình game.<br><b>Tay cầm</b>: kết nối với máy, rồi <b>bấm vào màn hình game và bấm một nút bất kỳ trên tay cầm</b>. Trình duyệt chỉ chia sẻ tay cầm cho trang sau thao tác đó. Khi huy hiệu 🎮 ở góc phải chuyển xanh là đã nhận; nếu menu điều khiển vẫn hiện “Not Connected”, đóng menu mở lại.
     </div>
   </section>
 </div>
@@ -792,6 +792,7 @@ EJS_onSaveSave=e=>parent.onSavEvent(e);
 
 window.onGameStart=function(){
   const w=frame.contentWindow; gm=w.EJS_emulator && w.EJS_emulator.gameManager;
+  try{ w.focus(); }catch(e){}
   const doc=w.document; doc.addEventListener('keydown',hotkey); doc.addEventListener('keyup',hotkeyUp);
   if(cfg.sav){
     setTimeout(()=>{ try{ gm.FS.writeFile(gm.getSaveFilePath(), cfg.sav); gm.loadSaveFiles(); toast('Đã nạp save từ '+(dirOK?'nơi đồng bộ':'trình duyệt')); }catch(e){ toast('Không nạp được save: '+e.message); } },1200);
@@ -845,9 +846,18 @@ $('bCheat').onclick=()=>{ $('cheatTxt').value=cur.cheatsTxt||''; $('cheatDlg').s
 $('cCancel').onclick=()=>$('cheatDlg').close();
 $('cSave').onclick=async()=>{ const t=$('cheatTxt').value; await idbPut('cheats',cur.base,t); $('cheatDlg').close(); const n=cur.name; await autoSave(); gm=null; frame.srcdoc=''; play(n); };
 
-/* tay cầm */
-addEventListener('gamepadconnected',e=>{ const c=$('padChip'); c.textContent='Tay cầm: '+e.gamepad.id.slice(0,32); c.className='chip ok'; toast('Đã nhận tay cầm'); });
-addEventListener('gamepaddisconnected',()=>{ const c=$('padChip'); c.textContent='Tay cầm: đã ngắt'; c.className='chip warn'; });
+/* tay cầm: trình duyệt chỉ "thấy" tay cầm sau khi người dùng bấm 1 nút; dò liên tục để cập nhật trạng thái */
+let lastPad='';
+function padPoll(){
+  const pads=(navigator.getGamepads?[...navigator.getGamepads()].filter(Boolean):[]);
+  const c=$('padChip'); const id=pads.length?pads[0].id:'';
+  if(id){ c.textContent='🎮 '+id.replace(/\(.*?\)/g,'').trim().slice(0,30); c.className='chip ok'; }
+  else { c.textContent='🎮 Bấm 1 nút trên tay cầm để nhận'; c.className='chip warn'; }
+  if(id!==lastPad){ if(id) toast('Đã nhận tay cầm'); lastPad=id; }
+}
+addEventListener('gamepadconnected',padPoll); addEventListener('gamepaddisconnected',padPoll);
+setInterval(padPoll,600);
+$('frameWrap').addEventListener('pointerdown',()=>{ try{ frame.contentWindow.focus(); }catch(e){} });
 
 /* vệt sáng kính đi theo con trỏ */
 document.addEventListener('pointermove',e=>{
