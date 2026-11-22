@@ -757,7 +757,16 @@ async function autoSave(){
 $('bSave').onclick=quickSave; $('bLoad').onclick=quickLoad;
 
 function parseCheats(txt){
-  return (txt||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ const i=l.indexOf('|'); return i<0?[l,l]:[l.slice(0,i).trim(),l.slice(i+1).trim()]; });
+  // Hỗ trợ: "Tên | MÃ"  hoặc  dòng tên rồi các dòng mã bên dưới. Nhiều dòng mã của cùng 1 cheat được nối bằng "+".
+  const out=[]; const isCode=l=>/^[0-9a-f]{8}[\s+]+[0-9a-f]{4,8}$/i.test(l);
+  for(const raw of (txt||'').split('\n')){
+    const l=raw.trim(); if(!l) continue;
+    const i=l.indexOf('|');
+    if(i>=0){ out.push([l.slice(0,i).trim(), l.slice(i+1).trim()]); continue; }
+    if(isCode(l)){ if(!out.length) out.push([l,l]); else { const c=out[out.length-1]; c[1]=c[1]?c[1]+'+'+l:l; } continue; }
+    out.push([l,'']);                                   // dòng tên, mã nằm ở dòng sau
+  }
+  return out.filter(c=>c[1]);
 }
 
 async function play(name){
@@ -801,6 +810,9 @@ window.onGameStart=function(){
   const w=frame.contentWindow; gm=w.EJS_emulator && w.EJS_emulator.gameManager;
   try{ w.focus(); }catch(e){}
   const doc=w.document; doc.addEventListener('keydown',hotkey); doc.addEventListener('keyup',hotkeyUp);
+  if(cfg.cheats&&cfg.cheats.length){   // cheat nạp từ danh sách mặc định là TẮT, nên bật hết
+    setTimeout(()=>{ try{ const em=w.EJS_emulator; em.cheats.forEach(c=>{ if(cfg.cheats.some(x=>x[0]===c.desc)) c.checked=true; }); em.updateCheatUI(); toast('Đã bật '+cfg.cheats.length+' cheat'); }catch(e){ toast('Không bật được cheat: '+e.message); } },1500);
+  }
   if(cfg.sav){
     setTimeout(()=>{ try{ gm.FS.writeFile(gm.getSaveFilePath(), cfg.sav); gm.loadSaveFiles(); toast('Đã nạp save từ '+(dirOK?'nơi đồng bộ':'trình duyệt')); }catch(e){ toast('Không nạp được save: '+e.message); } },1200);
   }
