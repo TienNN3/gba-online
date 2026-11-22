@@ -167,6 +167,30 @@
   dialog textarea:focus{border-color:#fff}
   #toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,12px);padding:11px 22px;border-radius:99px;font-size:13.5px;opacity:0;transition:.3s var(--ease);pointer-events:none;z-index:99;max-width:90vw;--tint:rgba(8,20,48,.5)}
   #toast.show{opacity:1;transform:translate(-50%,0)}
+
+  /* bảng cheat */
+  #cheatDlg{width:min(780px,95vw);max-height:90vh;--tint:rgba(8,20,48,.55)}
+  .clist{max-height:48vh;overflow:auto;margin:10px 0;padding-right:4px}
+  .cnote{font-size:12px;color:var(--muted);margin:6px 0;line-height:1.6}
+  #cheatDlg a{color:#fff}
+  details.cg{border:1px solid rgba(255,255,255,.2);border-radius:18px;background:rgba(255,255,255,.05);padding:2px 10px;margin-bottom:8px}
+  details.cg>summary{cursor:pointer;font-weight:700;font-size:14px;padding:11px 4px;list-style:none;display:flex;justify-content:space-between;align-items:center}
+  details.cg>summary::-webkit-details-marker{display:none}
+  details.cg>summary::after{content:"＋";opacity:.8}
+  details.cg[open]>summary::after{content:"－"}
+  .crow{display:flex;align-items:center;gap:12px;padding:9px 10px;margin:6px 0;border-radius:14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);cursor:pointer;transition:background .2s,border-color .2s}
+  .crow:hover{background:rgba(255,255,255,.12)}
+  .crow.on{background:linear-gradient(135deg,rgba(25,232,176,.30),rgba(47,155,255,.24));border-color:rgba(255,255,255,.55)}
+  .crow .ct{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .crow .ct b{font-size:13.5px}
+  .crow .ct small{font-size:11.5px;color:var(--muted);line-height:1.45}
+  .crow .tag{font-style:normal;font-size:10.5px;padding:2px 9px;border-radius:99px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);white-space:nowrap}
+  .sw{position:relative;width:44px;height:26px;flex:none}
+  .sw input{position:absolute;inset:0;opacity:0;margin:0;width:100%;height:100%;cursor:pointer}
+  .sw i{position:absolute;inset:0;border-radius:99px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.4);transition:.2s;pointer-events:none}
+  .sw i::after{content:"";position:absolute;left:2px;top:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,10,40,.4);transition:.22s var(--ease)}
+  .sw input:checked+i{background:linear-gradient(135deg,var(--mint),var(--sky));border-color:#fff}
+  .sw input:checked+i::after{transform:translateX(18px)}
   @media(max-width:760px){
     .bento{grid-template-columns:repeat(2,1fr)}
     .hero-tile{grid-column:span 2;grid-row:auto;min-height:250px}
@@ -268,12 +292,17 @@
   <div class="row" style="justify-content:flex-end"><button class="ghost" id="pClose">Đóng</button><button id="pGo" disabled>Tạo game</button></div>
 </dialog>
 <dialog id="cheatDlg">
-  <b style="font-size:16px">Cheat</b> <span style="color:var(--muted);font-size:13px">mỗi dòng: <code>Tên | MÃ</code></span>
-  <p style="font-size:12px;color:var(--muted)">Dùng mã GameShark/Action Replay đúng loại của game. Lưu xong game khởi động lại để áp dụng.</p>
-  <textarea id="cheatTxt" placeholder="Infinite HP | 82003224 0063"></textarea>
-  <div class="row" style="margin-top:12px;justify-content:flex-end">
-    <button class="ghost" id="cCancel">Đóng</button><button id="cSave">Lưu &amp; khởi động lại</button>
-  </div>
+  <div class="row" style="justify-content:space-between"><b style="font-size:17px">Cheat</b><span id="cCount" class="chip">0 đang bật</span></div>
+  <p class="cnote">Bật/tắt có hiệu lực <b>ngay</b>, không cần khởi động lại. Nên bật <b>từng cheat một</b>, tắt sau khi dùng và lưu state trước khi thử.
+    <span id="cSrcWrap">Nguồn mã: <a id="cSrc" target="_blank" rel="noopener noreferrer"></a></span></p>
+  <div class="row"><input id="cQ" type="search" placeholder="Tìm cheat (vd: rare, money, shiny, ball…)" style="flex:1"><button class="ghost small" id="cOff">Tắt hết</button></div>
+  <div id="cList" class="clist"></div>
+  <details class="cg"><summary>Cheat tự thêm</summary>
+    <p class="cnote">Mỗi dòng: <code>Tên | MÃ</code>. Có thể dán tên rồi các dòng mã bên dưới. Cheat tự thêm luôn được bật khi vào game.</p>
+    <textarea id="cheatTxt" placeholder="Infinite HP | 82001488 03E7"></textarea>
+    <div class="row" style="margin:8px 0 10px"><button class="small" id="cSave">Lưu &amp; áp dụng</button></div>
+  </details>
+  <div class="row" style="justify-content:flex-end"><button class="ghost" id="cCancel">Đóng</button></div>
 </dialog>
 <div id="toast"></div>
 
@@ -777,7 +806,8 @@ async function play(name){
   const autoRec=await idbGet('saves',base+'.auto.state');
   const cheatsTxt=(await idbGet('cheats',base))||'';
   const resume=$('resume').checked && !!autoRec;
-  cur={name,base,cheatsTxt};
+  cheatOn.clear(); $('bCheat').textContent='Cheat…';
+  cur={name,base,cheatsTxt,cheatSets:cheatSetsFor(base)};
   { const pl=(await idbGet('meta','played'))||{}; pl[name]=Date.now(); await idbPut('meta','played',pl); }
   cfg={
     url:URL.createObjectURL(blob), name:base, path:EJS_PATH, cheats:parseCheats(cheatsTxt),
@@ -810,8 +840,8 @@ window.onGameStart=function(){
   const w=frame.contentWindow; gm=w.EJS_emulator && w.EJS_emulator.gameManager;
   try{ w.focus(); }catch(e){}
   const doc=w.document; doc.addEventListener('keydown',hotkey); doc.addEventListener('keyup',hotkeyUp);
-  if(cfg.cheats&&cfg.cheats.length){   // cheat nạp từ danh sách mặc định là TẮT, nên bật hết
-    setTimeout(()=>{ try{ const em=w.EJS_emulator; em.cheats.forEach(c=>{ if(cfg.cheats.some(x=>x[0]===c.desc)) c.checked=true; }); em.updateCheatUI(); toast('Đã bật '+cfg.cheats.length+' cheat'); }catch(e){ toast('Không bật được cheat: '+e.message); } },1500);
+  if(cfg.cheats&&cfg.cheats.length){   // cheat tự thêm luôn được bật khi vào game
+    setTimeout(()=>{ applyCheats(); toast('Đã bật '+cfg.cheats.length+' cheat'); },1500);
   }
   if(cfg.sav){
     setTimeout(()=>{ try{ gm.FS.writeFile(gm.getSaveFilePath(), cfg.sav); gm.loadSaveFiles(); toast('Đã nạp save từ '+(dirOK?'nơi đồng bộ':'trình duyệt')); }catch(e){ toast('Không nạp được save: '+e.message); } },1200);
@@ -860,10 +890,162 @@ $('impState').onchange=async e=>{
 };
 $('bFull').onclick=()=>{ (frame.requestFullscreen||frame.webkitRequestFullscreen).call(frame); };
 
-/* cheat */
-$('bCheat').onclick=()=>{ $('cheatTxt').value=cur.cheatsTxt||''; $('cheatDlg').showModal(); };
+/* ===== Cheat: danh sách dựng sẵn, bật/tắt ngay ===== */
+const AR3='AR v3', CB='Code Breaker';
+const ITEM_TXT=`Ultra Ball|0002|ECE6CBBF A0ABE7F4|ball
+Great Ball|0003|C95BAFE5 6608C38E|ball
+Poké Ball|0004|2AB6394E FABDFDE0|ball
+Potion|000D|F169B4D9 FF91BFCC
+Antidote|000E|3E3ECD34 56DC8F81
+Burn Heal|000F|ACFE4C87 684DF6E0
+Ice Heal|0010|D797C004 36C922BF
+Awakening|0011|0ADF48B7 B27F570C
+Parlyz Heal|0012|4E27B13F 9077C8A0
+Full Restore|0013|1A3D3047 B7A2001A
+Max Potion|0014|877B549A 2AE0B8C7
+Hyper Potion|0015|6D374B6B 18DC493F
+Super Potion|0016|27242C7C 7E136E19
+Full Heal|0017|61F570CF EABBC425
+Revive|0018|4DF5EBA4 532F3B69
+Max Revive|0019|F009B448 250576A1
+Fresh Water|001A|217C0775 27697F20
+Soda Pop|001B|49693274 3292FDEC
+Lemonade|001C|31263FCF 213797FB
+Moomoo Milk|001D|3A5A1FE4 5E583CBD
+EnergyPowder|001E|552027E9 8D788DC9
+Energy Root|001F|2FEA0B8E 264FE7AC
+Heal Powder|0020|1660192F 480CB2CF
+Revival Herb|0021|76B72F34 D796C185
+Ether|0022|BE3484E1 4C4B470E
+Sacred Ash|002D|A90074E4 F3F7ABDE
+HP Up|003F|6A5EDF72 7C5C4908
+Protein|0040|A43BB781 B711720F
+Iron|0041|CE843785 19072D7B
+Carbos|0042|9B46A7D8 4DAA958B
+Calcium|0043|8176514C 907F807D
+Zinc|0046|81F38895 FC97659C
+PP Max|0047|6A08F63A F9081476
+SALVEYO WEED|0048|CE571FBF 4ABA269C
+Guard Spec.|0049|71946F44 6F0D408F
+Dire Hit|004A|0D5AE52F 0B3E56D1
+X Attack|004B|330E85A1 0873DFB3
+X Defend|004C|66099B6C 825881C7
+X Speed|004D|84D916FE 4836E6F1
+Fluffy Tail|0051|DC097160 50CE89AD
+Orange Map|0052|5F103DE9 E0F92A91
+Super Repel|0053|C3028D25 D041983A
+Max Repel|0054|5F0BECDD BDAC2F15
+Escape Rope|0055|706F0D86 E8E78507
+Sun Stone|005D|39875DA5 01F64AC7
+Moon Stone|005E|56368201 0D943901
+Fire Stone|005F|01191ECD 06C62136
+Thunderstone|0060|0F144EA9 E1612A20
+Water Stone|0061|77824F6C D98ECB3E
+Leaf Stone|0062|A436F85A 529EE5C3
+Nugget|006E|687F1A61 B3F5FAD3
+Heart Scale|006F|21150C74 33F47BCB
+Exp. Share|00B6|34427DFA 9A34D53C
+King's Rock|00BB|63A95B9E B8B02B00
+Amulet Coin|00BD|4D1D17B0 CA83C1FE
+DeepSeaTooth|00C0|B6D0B4AF 219390E2
+DeepSeaScale|00C1|168078B0 9C26A83E
+Lucky Egg|00C5|15667A1B 7D4F9C08
+Metal Coat|00C7|D98640EC DB987C6F
+Dragon Scale|00C9|E88D2E39 8181C951
+Up-Grade|00DA|13AAB5ED 2E503B73
+Bottle Cap|018E|550E76E6 E0245057
+Gold B. Cap|018F|3A525C0A 7F398729`;
+const ITEM_ITEMS=ITEM_TXT.split('\n').map((l,i)=>{ const [n,id,c1,pk]=l.split('|'); return {id:'it'+id,n:n+' ×99',d:'99 '+n+' ở ô 1 của túi '+(pk==='ball'?'Poké Ball':'Thuốc/Vật phẩm')+' (ID '+id+')',t:AR3,c:[c1,pk==='ball'?'2D6C81C5 780FF047':'B48CD905 2AD124DB'],ex:pk==='ball'?'ball':'med'}; });
+const CHEATS_ANIME=[
+ {g:'Phổ biến',open:1,items:[
+  {id:'candy',n:'Rare Candy ×99',d:'99 Rare Candy ở ô 1 túi Thuốc. Thay món đang ở ô 1, hãy chuyển món cần giữ đi chỗ khác trước.',t:AR3,c:['41FE2549 D06FEACA','B48CD905 2AD124DB'],ex:'med'},
+  {id:'master',n:'Master Ball ×99',d:'99 Master Ball ở ô 1 túi Poké Ball (thay món ở ô 1).',t:AR3,c:['1CE61200 BED34060','2D6C81C5 780FF047'],ex:'ball'},
+  {id:'money',n:'Tiền ¥999,999',d:'Đặt tiền thành 999,999 và giữ nguyên. Nếu số vật phẩm/tiền xu bị lệch, tắt cheat.',t:AR3,c:['614C30A9 D73F2E69','43548B96 4D0D9F75']},
+  {id:'pp',n:'Vô hạn PP',d:'Mọi chiêu của Pokémon đang đánh luôn 99 PP. Bật trước khi mở menu chiêu; trận đôi chỉ áp cho Pokémon bên trái.',t:CB,c:['32001484 0063','32001485 0063','32001486 0063','32001487 0063']},
+  {id:'walk',n:'Đi xuyên tường',d:'Đi qua mọi ô: cây, nước, nhà, vách đá. TẮT trước khi qua cửa, bậc thang, warp và trước khi lưu, kẻo kẹt.',t:AR3,c:['F76CA5E8 759F0A11','8E883EFF 92E9660D']},
+  {id:'pcany',n:'Mở PC mọi nơi (Start → Chievos)',d:'Mở hệ thống PC từ menu Start, không cần vào Pokémon Center. Tắt sau khi dùng.',t:AR3,c:['347BF57B 004A335E','8F76A636 F0D6E3DC','0B497355 E3D519C9','4186FF86 285CC32A','22185821 6B5B9027','A9420DC8 089E803F','0B3A87DF 55EA4D41','65DA389A 09D8882C']},
+ ]},
+ {g:'EXP nhân (chỉ bật 1)',items:[
+  ['×2','EF91D95C 939158E7'],['×4','F605E776 0B2BDC9A'],['×8','4472D12B 9FA2E185'],['×16','5179715E BAAAD6F6'],
+  ['×32','14EAC737 FDBBA42A'],['×64','10A434F2 CD66134F'],['×128','4D70AEE6 A9A95247'],['×256','DEEB1A90 676740C3']
+ ].map(([m,c])=>({id:'exp'+m,n:'EXP '+m,d:'Nhân EXP nhận được sau mỗi trận. An toàn, có thể để bật liên tục.',t:AR3,c:['7CFED6A5 E492BC3A',c],ex:'exp'}))},
+ {g:'Tiền & cửa hàng',items:[
+  {id:'cost1',n:'Mọi món giá 1',d:'Mọi vật phẩm ở mọi cửa hàng giá 1. Cũng áp dụng khi bán nên bán được 0, hãy TẮT trước khi bán.',t:AR3,c:['87647AC2 6A70CC94','AD86124F 2823D8DA']},
+  {id:'keyitem',n:'Key Item: TM Case ở ô 1',d:'Đặt TM Case vào ô 1 túi Key Items. Mã đã mã hoá nên không đổi món bằng cách sửa số.',t:AR3,c:['7FA21F36 D2475585','D03F597B C709459E'],ex:'key'},
+ ]},
+ {g:'Pokémon & Pokédex',items:[
+  ...['320385B0','32038614','32038678','320386DC','32038740','320387A4'].map((a,i)=>({id:'lv'+(i+1),n:'Lv 100 – Pokémon ô '+(i+1),d:'Hiển thị Pokémon ô '+(i+1)+' của đội ở level 100.',t:CB,c:[a+' 0064']})),
+  {id:'hp999',n:'999 HP & chỉ số (Pokémon ô 1)',d:'Đặt Pokémon ô 1 thành 999 HP và 999 mọi chỉ số hiển thị. Không phải IV/EV, trở lại bình thường khi game tính lại nếu tắt cheat.',t:CB,c:['820385B2 03E7','820385B4 03E7','820385B6 03E7','820385B8 03E7','820385BA 03E7','820385BC 03E7','820385BE 03E7']},
+  {id:'dex',n:'Pokédex Kanto đầy đủ (151)',d:'Đánh dấu cả 151 Pokémon Kanto là đã thấy và đã bắt. Không tặng Pokémon.',t:AR3,c:['06EC85A9 6F87E637','43D301EF 207DFC5C','D39189F1 E751CCAB','DE097AEE 418F638A','F85615EC 41A3E949','1D38D1BC 6C5CBDDF','5FC802A2 5AE51D92','F0B0A1B7 990AA39F','6621F56A D14B395E','4D0D2C59 AFB6D5F9','9AEE8F48 38334C55','09E7F440 954DE74C','50AFD631 1C62B6A1','8712B9BB C9479CF9','8C8EA3AE E2B5BB92','082198DE EEEDEF7F','6FF3DDB2 FB19A29A','075A31ED E18CE5B5','A7A50EDF FE6F82E5','154C37A4 3F7A3CAE']},
+ ]},
+ {g:'Chiến đấu',items:[
+  {id:'ohko',n:'Đánh 1 phát hạ gục',d:'Đối thủ còn 1 HP nên đòn tiếp theo hạ gục. Chỉ trong trận đấu.',t:AR3,c:['EF487361 78714B95','B3DC7485 DC10AE34']},
+  {id:'nohp',n:'Không bao giờ mất HP',d:'Giữ Pokémon đang đánh ở 999 HP, không thể ngất. Trận đôi chỉ áp cho bên trái.',t:CB,c:['82001488 03E7']},
+  {id:'bstats',n:'Max chỉ số trong trận (999)',d:'Tấn công, Phòng thủ, Tốc độ, Sp.Atk, Sp.Def của Pokémon đang đánh = 999 trong trận hiện tại.',t:CB,c:['82001462 03E7','82001464 03E7','82001466 03E7','82001468 03E7','8200146A 03E7']},
+  {id:'moves',n:'Đổi 4 chiêu (Hyper Beam, Surf, Thunder, Fire Blast)',d:'Đổi 4 chiêu của Pokémon đang đánh trong trận. Nên bật cùng Vô hạn PP. Đổi 4 số cuối mỗi dòng bằng ID chiêu nếu muốn chiêu khác.',t:CB,c:['8200146C 003F','8200146E 0039','82001470 0057','82001472 007E']},
+ ]},
+ {g:'Bắt & Shiny',items:[
+  {id:'catch',n:'Dễ bắt',d:'Gần như mọi lần ném đều bắt được, Poké Ball thường như Master Ball.',t:AR3,c:['E3F03BC5 BCD735AC','8BB602F7 8CEB681A']},
+  {id:'shiny',n:'Pokémon hoang dã là Shiny',d:'Pokémon hoang dã trên tuyến đường thường sẽ là shiny thật. Các Pokémon do cốt truyện đặt sẵn không đổi được. Cheat cũng đổi loài gặp.',t:AR3,c:['FD56EE45 7DD047E5','A8B267A4 1756D291','AC2DFEF0 27788C78','F66CC0A8 CAB6890A','88C353C1 D6A42E7B','580ED197 A5B19DD4','73BA17FC E590A5EB','31993B55 7A62DA29']},
+ ]},
+ {g:'Huy hiệu (chỉ bật 1)',items:[
+  ['Cả 8 huy hiệu','03544071 AD5FEB53'],['1 huy hiệu (Boulder)','2F6E326B F0A1ACBB'],['2 huy hiệu (đến Cascade)','1C905CA1 11D440CD'],['3 huy hiệu (đến Thunder)','E9D3F815 703E7FD5'],
+  ['4 huy hiệu (đến Rainbow)','39ADD75F 5F063D16'],['5 huy hiệu (đến Soul)','719BD290 30F00B8C'],['6 huy hiệu (đến Marsh)','64D70B26 57CACFE0'],['7 huy hiệu (đến Volcano)','B10A9041 3D98CA66']
+ ].map(([n,c],i)=>({id:'bdg'+i,n,d:i===0?'Game cốt truyện: cheat chỉ đặt huy hiệu, không bỏ qua tập, có thể mở khu vực chưa tới. Nên dùng trên save riêng.':'',t:AR3,c:[c],ex:'badge'}))},
+ {g:'Vật phẩm ×99 (Rare Candy, Master Ball ở nhóm Phổ biến)',items:ITEM_ITEMS},
+];
+const CHEAT_SRC={name:'pokemoncoders.com (Anime Version v2.0.7)',url:'https://www.pokemoncoders.com/pokemon-anime-version-cheats/'};
+const cheatSetsFor=base=>/anime\s*version/i.test(base)?CHEATS_ANIME:[];
+const cheatOn=new Set();
+const allPresets=()=>(cur&&cur.cheatSets||[]).flatMap(g=>g.items);
+
+function applyCheats(){
+  if(!gm||!cur) return;
+  const em=frame.contentWindow.EJS_emulator; if(!em) return;
+  const list=[];
+  for(const it of allPresets()) if(cheatOn.has(it.id)) list.push({desc:it.n,code:it.c.join('+')});
+  for(const [n,c] of parseCheats(cur.cheatsTxt)) list.push({desc:n,code:c});
+  try{ em.cheats=list.map(x=>({desc:x.desc,checked:true,code:x.code,is_permanent:true})); em.updateCheatUI(); }
+  catch(e){ toast('Không áp dụng được cheat: '+e.message); }
+  $('bCheat').textContent='Cheat'+(list.length?` (${list.length})`:'')+'…';
+  $('cCount').textContent=list.length+' đang bật'; $('cCount').className='chip'+(list.length?' ok':'');
+}
+function syncCheatRows(){
+  document.querySelectorAll('#cList .crow').forEach(r=>{ const on=cheatOn.has(r.dataset.id); r.classList.toggle('on',on); r.querySelector('input').checked=on; });
+}
+function toggleCheat(it,on){
+  if(on){ if(it.ex) for(const o of allPresets()) if(o.ex===it.ex&&o.id!==it.id) cheatOn.delete(o.id); cheatOn.add(it.id); }
+  else cheatOn.delete(it.id);
+  syncCheatRows(); applyCheats();
+}
+function renderCheatDlg(){
+  const box=$('cList'); box.innerHTML=''; const sets=cur.cheatSets;
+  const q=($('cQ').value||'').toLowerCase().trim();
+  $('cSrcWrap').style.display=sets.length?'':'none'; $('cSrc').textContent=CHEAT_SRC.name; $('cSrc').href=CHEAT_SRC.url;
+  if(!sets.length){ box.innerHTML='<div class="cnote" style="padding:14px">Chưa có bộ cheat dựng sẵn cho game này. Dán code của bạn ở mục “Cheat tự thêm” bên dưới.</div>'; return; }
+  for(const grp of sets){
+    const rows=grp.items.filter(it=>!q||(it.n+' '+(it.d||'')+' '+it.id).toLowerCase().includes(q));
+    if(!rows.length) continue;
+    const det=document.createElement('details'); det.className='cg'; det.open=!!grp.open||!!q;
+    const sum=document.createElement('summary'); sum.textContent=`${grp.g} (${rows.length})`; det.appendChild(sum);
+    for(const it of rows){
+      const row=document.createElement('label'); row.className='crow'; row.dataset.id=it.id;
+      row.innerHTML='<span class="sw"><input type="checkbox"><i></i></span><span class="ct"><b></b><small></small></span><em class="tag"></em>';
+      row.querySelector('b').textContent=it.n; row.querySelector('small').textContent=it.d||''; if(!it.d) row.querySelector('small').remove();
+      row.querySelector('.tag').textContent=it.t;
+      row.querySelector('input').onchange=e=>toggleCheat(it,e.target.checked);
+      det.appendChild(row);
+    }
+    box.appendChild(det);
+  }
+  syncCheatRows();
+}
+$('bCheat').onclick=()=>{ $('cheatTxt').value=cur.cheatsTxt||''; $('cQ').value=''; renderCheatDlg(); applyCheatsLabel(); $('cheatDlg').showModal(); };
+function applyCheatsLabel(){ const n=[...cheatOn].length+parseCheats(cur.cheatsTxt).length; $('cCount').textContent=n+' đang bật'; $('cCount').className='chip'+(n?' ok':''); }
+$('cQ').oninput=renderCheatDlg;
+$('cOff').onclick=()=>{ cheatOn.clear(); syncCheatRows(); applyCheats(); };
 $('cCancel').onclick=()=>$('cheatDlg').close();
-$('cSave').onclick=async()=>{ const t=$('cheatTxt').value; await idbPut('cheats',cur.base,t); $('cheatDlg').close(); const n=cur.name; await autoSave(); gm=null; frame.srcdoc=''; play(n); };
+$('cSave').onclick=async()=>{ cur.cheatsTxt=$('cheatTxt').value; await idbPut('cheats',cur.base,cur.cheatsTxt); applyCheats(); toast('Đã lưu và áp dụng cheat'); };
 
 /* tay cầm: trình duyệt chỉ "thấy" tay cầm sau khi người dùng bấm 1 nút; dò liên tục để cập nhật trạng thái */
 let lastPad='';
